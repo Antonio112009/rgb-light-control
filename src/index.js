@@ -73,6 +73,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       _colorPickerValues: { state: true },
       _colorMode: { state: true },
       _rgbView: { state: true },
+      _colorPickerReady: { state: true },
     };
   }
 
@@ -119,6 +120,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           hideStyle.remove();
         }
       }
+      this._colorPickerReady = true;
       this.requestUpdate();
     }
   }
@@ -682,6 +684,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _createColorPicker(stateObj) {
     if (this.config.color_picker === false) return html``;
     if (!this.shouldShowFeature('color', stateObj)) return html``;
+    if (!customElements.get('ha-hs-color-picker')) return html``;
 
     const haHs = stateObj.attributes.hs_color || [0, 0];
     const pickerValue =
