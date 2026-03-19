@@ -305,17 +305,16 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
           </div>
           </div>
 
-          <div class='checkbox-options'>
-            <ha-formfield label="White Mode">
-              <select
-                style="padding: 8px; border-radius: 4px; border: 1px solid var(--divider-color, #ccc); background: var(--card-background-color, #fff); color: var(--primary-text-color, #000); font-size: 14px;"
-                @change="${this._whiteModeChanged}"
-              >
-                <option value="auto" ?selected=${(this._config.white_mode || 'auto') === 'auto'}>Auto</option>
-                <option value="range" ?selected=${this._config.white_mode === 'range'}>Range</option>
-                <option value="fixed" ?selected=${this._config.white_mode === 'fixed'}>Fixed</option>
-              </select>
-            </ha-formfield>
+          <div class='entities'>
+            <ha-select
+              label="White Mode"
+              @selected="${this._whiteModeChanged}"
+              @closed="${e => e.stopPropagation()}"
+            >
+              <mwc-list-item value="auto" ?selected=${(this._config.white_mode || 'auto') === 'auto'}>Auto (detect from entity)</mwc-list-item>
+              <mwc-list-item value="range" ?selected=${this._config.white_mode === 'range'}>Range (warm/cool slider)</mwc-list-item>
+              <mwc-list-item value="fixed" ?selected=${this._config.white_mode === 'fixed'}>Fixed (plain white)</mwc-list-item>
+            </ha-select>
           </div>
       </div>
     `;
@@ -350,7 +349,15 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
 
   _whiteModeChanged(ev) {
     if (!this._config || !this.hass || !this._firstRendered) return;
-    this._config = { ...this._config, white_mode: ev.target.value };
+    const select = ev.target;
+    const index = ev.detail?.index;
+    // Get value from the selected mwc-list-item
+    const items = select.querySelectorAll('mwc-list-item');
+    const value = (index !== undefined && items[index])
+      ? items[index].getAttribute('value')
+      : select.value;
+    if (!value || value === this._config.white_mode) return;
+    this._config = { ...this._config, white_mode: value };
     fireEvent(this, 'config-changed', { config: this._config });
   }
 }
