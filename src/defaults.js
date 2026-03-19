@@ -16,7 +16,7 @@ export default {
   speed: true,
   intensity: true,
 
-  white_mode: 'auto', // 'auto' = detect from entity, 'range' = color temp slider, 'fixed' = plain white
+  fixed_white: false, // true = white mode shows only brightness (no color temp slider)
 
   force_features: false,
 

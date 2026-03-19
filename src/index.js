@@ -244,7 +244,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const isRgbMode = !showModeToggle || this._colorMode === 'rgb';
     const isWhiteMode = !showModeToggle || this._colorMode === 'white';
 
-    const isFixedWhite = this._isFixedWhite(stateObj);
+    const isFixedWhite = this._isFixedWhite();
 
     return html`
       ${this.createHeader(stateObj)}
@@ -295,29 +295,11 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 
   /**
-   * determines if the entity has fixed white (no color temp range)
-   * auto-detects from supported_color_modes, or uses config override
-   * @param {LightEntity} stateObj
+   * determines if white mode should hide the color temp slider
    * @return {boolean}
    */
-  _isFixedWhite(stateObj) {
-    const setting = this.config.white_mode;
-    if (setting === 'fixed') return true;
-    if (setting === 'range') return false;
-
-    // Auto-detect from supported_color_modes and actual kelvin range
-    const modes = stateObj.attributes.supported_color_modes || [];
-    const hasColorTemp = modes.includes('color_temp');
-    const hasRgbww = modes.includes('rgbww');
-
-    if (!hasColorTemp && !hasRgbww) return true; // no range capability → fixed
-
-    // Even if color_temp is supported, check if the actual range is meaningful
-    const minK = stateObj.attributes.min_color_temp_kelvin;
-    const maxK = stateObj.attributes.max_color_temp_kelvin;
-    if (hasColorTemp && minK && maxK && Math.abs(maxK - minK) < 100) return true; // negligible range → fixed
-
-    return false;
+  _isFixedWhite() {
+    return this.config.fixed_white === true;
   }
 
   /**
@@ -332,7 +314,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (!this.isEntityOn(stateObj)) return;
 
     if (mode === 'white') {
-      if (this._isFixedWhite(stateObj)) {
+      if (this._isFixedWhite()) {
         // Fixed white — just set white value (brightness handles the rest)
         const whiteValue = this.getWhiteValue(stateObj, 3) || 255;
         const colorModes = stateObj.attributes.supported_color_modes || [];

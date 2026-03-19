@@ -305,16 +305,14 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
           </div>
           </div>
 
-          <div class='checkbox-options' style="flex-direction: column; gap: 4px; margin-top: 10px;">
-            <label style="font-size: 12px; color: var(--secondary-text-color, #727272);">White Mode</label>
-            <select
-              @change="${this._whiteModeChanged}"
-              style="padding: 10px; border-radius: 4px; border: 1px solid var(--divider-color, #444); background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color, #fff); font-size: 14px; width: 100%; cursor: pointer; outline: none;"
-            >
-              <option value="auto" ?selected=${(this._config.white_mode || 'auto') === 'auto'}>Auto (detect from entity)</option>
-              <option value="range" ?selected=${this._config.white_mode === 'range'}>Range (warm/cool slider)</option>
-              <option value="fixed" ?selected=${this._config.white_mode === 'fixed'}>Fixed (plain white)</option>
-            </select>
+          <div class='checkbox-options'>
+            <ha-formfield label="Fixed White">
+              <ha-checkbox
+                @change="${this.checkboxConfigChanged}"
+                .checked=${this._config.fixed_white}
+                .value="${'fixed_white'}"
+              ></ha-checkbox>
+            </ha-formfield>
           </div>
       </div>
     `;
@@ -347,9 +345,4 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
     fireEvent(this, 'config-changed', { config: this._config });
   }
 
-  _whiteModeChanged(ev) {
-    if (!this._config || !this.hass || !this._firstRendered) return;
-    this._config = { ...this._config, white_mode: ev.target.value };
-    fireEvent(this, 'config-changed', { config: this._config });
-  }
 }

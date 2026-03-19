@@ -318,15 +318,9 @@
       <label><input type="checkbox" id="cfg-child_card"> child_card</label>
     </div>
 
-    <h3>White Mode</h3>
-    <label>
-      white_mode
-      <select id="cfg-white_mode">
-        <option value="auto">auto (detect from entity)</option>
-        <option value="range">range (warm/cool slider)</option>
-        <option value="fixed">fixed (plain white)</option>
-      </select>
-    </label>
+    <div class="checkbox-grid">
+      <label><input type="checkbox" id="cfg-fixed_white"> fixed_white</label>
+    </div>
 
     <h3>Icons</h3>
     <label>brightness_icon <input type="text" id="cfg-brightness_icon" value="weather-sunny"></label>
@@ -394,9 +388,6 @@
       const el = document.getElementById('cfg-' + key);
       if (el && el.value.trim()) cfg[key] = el.value.trim();
     });
-
-    // White mode
-    cfg.white_mode = document.getElementById('cfg-white_mode').value;
 
     // Transition
     const transition = parseFloat(document.getElementById('cfg-transition').value);
@@ -676,7 +667,6 @@
 
     // Selects
     document.getElementById('cfg-entity').addEventListener('change', () => recreateCard());
-    document.getElementById('cfg-white_mode').addEventListener('change', () => recreateCard());
 
     // Text inputs (debounced)
     let textTimeout;
