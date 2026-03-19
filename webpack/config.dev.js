@@ -5,6 +5,7 @@ const commonConfig = require('./config.common');
 
 module.exports = merge(commonConfig, {
   mode: 'development',
+  entry: './src/dev/dev-entry.js',
   devServer: {
     static: {
       directory: path.resolve(__dirname, '../src/dev'),
