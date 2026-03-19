@@ -4,18 +4,7 @@ import style from './style-editor';
 import defaultConfig from './defaults';
 import buildElementDefinitions from './buildElementDefinitions';
 import globalElementLoader from './globalElementLoader';
-
-export const fireEvent = (node, type, detail = {}, options = {}) => {
-  const event = new Event(type, {
-    bubbles: options.bubbles === undefined ? true : options.bubbles,
-    cancelable: Boolean(options.cancelable),
-    composed: options.composed === undefined ? true : options.composed,
-  });
-
-  event.detail = detail;
-  node.dispatchEvent(event);
-  return event;
-};
+import { fireEvent } from './utils/fire-event';
 
 export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement) {
   static get elementDefinitions() {
@@ -76,7 +65,7 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
     return html`
       <div class="card-config">
 
-        <div class=overall-config'>
+        <div class='overall-config'>
           <ha-form-string
             .schema=${{ name: 'header', type: 'string' }}
             label="Header"

@@ -1,14 +1,19 @@
 module.exports = {
-    "presets": [
-        [
-            "@babel/preset-env",
-            {
-                "useBuiltIns": "usage",
-                "corejs": 3,
-                "debug": true,
-                "targets": "> 0.25%, not dead",
-                "shippedProposals": true
-            }
-        ]
-    ]
-}
+  presets: [
+    [
+      "@babel/preset-env",
+      {
+        modules: false,
+        targets: { esmodules: true },
+      },
+    ],
+    ["minify"],
+  ],
+  comments: false,
+  plugins: [
+    ["@babel/plugin-proposal-decorators", { legacy: true }],
+    ["@babel/plugin-proposal-class-properties", { loose: true }],
+    ["@babel/plugin-transform-template-literals"],
+    ["iife-wrap"],
+  ],
+};

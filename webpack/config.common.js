@@ -11,7 +11,7 @@ module.exports = {
     rules: [
       {
         test: /\.js$/,
-        include: [/node_modules(?:\/|\\)lit-element|lit-html/],
+        include: [/node_modules(?:\/|\\)(?:lit-element|lit-html|lit|@lit(?:\/|\\)|@lit-labs(?:\/|\\))/],
         use: {
           loader: "babel-loader",
           options: {

@@ -2,8 +2,27 @@ import { LitElement, html } from 'lit';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 
 import { hs2rgb, rgb2hs } from "./convert-color";
+import { fireEvent } from "../utils/fire-event";
+
+// Color wheel canvas constants
+const CANVAS_SIZE = 500;
+const WHEEL_RADIUS = 225;
+const MARKER_RADIUS_RATIO = 0.08;
+const TOOLTIP_RADIUS_RATIO = 0.15;
+const TOOLTIP_OFFSET_Y_MULTIPLIER = 3;
+const DEFAULT_THROTTLE_MS = 500;
 
 class LmeColorPicker extends ScopedRegistryHost(LitElement) {
+  constructor() {
+    super();
+    // Bind event handlers so add/removeEventListener use the same reference
+    this.onMouseSelect = this.onMouseSelect.bind(this);
+    this.onMouseUp = this.onMouseUp.bind(this);
+    this.onTouchSelect = this.onTouchSelect.bind(this);
+    this.onTouchEnd = this.onTouchEnd.bind(this);
+    this.onTap = this.onTap.bind(this);
+  }
+
   static get properties() {
     return {
       hsColor: {
@@ -29,17 +48,17 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
       // and should be the same or smaller
       width: {
         type: Number,
-        value: 500,
+        value: CANVAS_SIZE,
       },
 
       height: {
         type: Number,
-        value: 500,
+        value: CANVAS_SIZE,
       },
 
       radius: {
         type: Number,
-        value: 225,
+        value: WHEEL_RADIUS,
       },
 
       // the amount segments for the hue
@@ -73,13 +92,12 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
       // value is timeout in milliseconds
       throttle: {
         type: Number,
-        value: 500,
+        value: DEFAULT_THROTTLE_MS,
       },
     };
   }
 
   render() {
-    console.log('test')
     return html`
       <style>
         :host {
@@ -228,6 +246,7 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
   onMouseUp() {
     this.canvas.classList.remove("mouse", "dragging");
     this.removeEventListener("mousemove", this.onMouseSelect);
+    this.removeEventListener("mouseup", this.onMouseUp);
   }
 
   onMouseSelect(ev) {
@@ -274,6 +293,7 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
   onTouchEnd() {
     this.canvas.classList.remove("touch", "dragging");
     this.removeEventListener("touchmove", this.onTouchSelect);
+    this.removeEventListener("touchend", this.onTouchEnd);
   }
 
   onTouchSelect(ev) {
@@ -328,7 +348,7 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
   // set color values and fire colorselected event
   fireColorSelected(hs, rgb) {
     this.hsColor = hs;
-    this.fire("colorselected", { hs, rgb });
+    fireEvent(this, "colorselected", { hs, rgb });
   }
 
   /*
@@ -417,7 +437,7 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
     // get current pixel
     const imageData = this.backgroundLayer
       .getContext("2d")
-      .getImageData(x + 250, y + 250, 1, 1);
+      .getImageData(x + this.originX, y + this.originY, 1, 1);
     const pixel = imageData.data;
     return { r: pixel[0], g: pixel[1], b: pixel[2] };
   }
@@ -454,9 +474,9 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
    */
 
   setupLayers() {
-    this.canvas = this.$.canvas;
-    this.backgroundLayer = this.$.backgroundLayer;
-    this.interactionLayer = this.$.interactionLayer;
+    this.canvas = this.renderRoot.getElementById('canvas');
+    this.backgroundLayer = this.renderRoot.getElementById('backgroundLayer');
+    this.interactionLayer = this.renderRoot.getElementById('interactionLayer');
 
     // coordinate origin position (center of the wheel)
     this.originX = this.width / 2;
@@ -606,9 +626,9 @@ class LmeColorPicker extends ScopedRegistryHost(LitElement) {
 
   drawMarker() {
     const svgElement = this.interactionLayer;
-    const markerradius = this.radius * 0.08;
-    const tooltipradius = this.radius * 0.15;
-    const TooltipOffsetY = -(tooltipradius * 3);
+    const markerradius = this.radius * MARKER_RADIUS_RATIO;
+    const tooltipradius = this.radius * TOOLTIP_RADIUS_RATIO;
+    const TooltipOffsetY = -(tooltipradius * TOOLTIP_OFFSET_Y_MULTIPLIER);
     const TooltipOffsetX = 0;
 
     svgElement.marker = document.createElementNS(
