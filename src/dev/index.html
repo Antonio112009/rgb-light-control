@@ -252,6 +252,14 @@
     </label>
 
     <label>
+      View Mode
+      <select id="ctrl-viewmode">
+        <option value="rgb">RGB</option>
+        <option value="white">White</option>
+      </select>
+    </label>
+
+    <label>
       Color Mode
       <select id="ctrl-colormode">
         <option value="hs,color_temp,rgb">hs + color_temp + rgb</option>
@@ -624,6 +632,13 @@
     document.getElementById('ctrl-effect').addEventListener('change', (e) => {
       currentState.effect = e.target.value;
       updateCard();
+    });
+
+    // View mode select (RGB / White)
+    document.getElementById('ctrl-viewmode').addEventListener('change', (e) => {
+      if (cardRef) {
+        cardRef._colorMode = e.target.value;
+      }
     });
 
     // Color mode select

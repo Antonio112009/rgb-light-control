@@ -43,6 +43,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       hass: {},
       config: {},
       _colorPickerValues: { state: true },
+      _colorMode: { state: true },
     };
   }
 
@@ -78,6 +79,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       ...defaultConfig,
       ...config,
     };
+
+    if (this._colorMode === undefined) {
+      this._colorMode = config.default_color_mode || 'rgb';
+    }
   }
 
   static async getConfigElement() {
@@ -224,15 +229,64 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (!stateObj || !stateObj.attributes) return html``;
     const sliderClass = this.config.full_width_sliders ? 'ha-slider-full-width' : '';
 
+    const supportsRgb = this._supportsRgb(stateObj);
+    const supportsWhite = this._supportsWhite(stateObj);
+    const showModeToggle = supportsRgb && supportsWhite;
+    const isRgbMode = !showModeToggle || this._colorMode === 'rgb';
+    const isWhiteMode = !showModeToggle || this._colorMode === 'white';
+
     return html`
       ${this.createHeader(stateObj)}
+      ${showModeToggle ? this._createModeToggle() : ''}
       <div class="light-entity-card-sliders ${sliderClass}">
-        ${this.createBrightnessSlider(stateObj)} ${this.createSpeedSlider(stateObj)}
-        ${this.createIntensitySlider(stateObj)} ${this.createColorTemperature(stateObj)}
-        ${this.createWhiteValue(stateObj)}
-        ${this.createWarmWhiteValue(stateObj)}
+        ${this.createBrightnessSlider(stateObj)}
+        ${this.createSpeedSlider(stateObj)}
+        ${this.createIntensitySlider(stateObj)}
+        ${isWhiteMode ? this.createColorTemperature(stateObj) : ''}
+        ${isWhiteMode ? this.createWhiteValue(stateObj) : ''}
+        ${isWhiteMode ? this.createWarmWhiteValue(stateObj) : ''}
       </div>
-      ${this.createColorPicker(stateObj)} ${this.createEffectList(stateObj)}
+      ${isRgbMode ? this.createColorPicker(stateObj) : ''}
+      ${this.createEffectList(stateObj)}
+    `;
+  }
+
+  /**
+   * checks if entity supports RGB-type color modes
+   * @param {LightEntity} stateObj
+   * @return {boolean}
+   */
+  _supportsRgb(stateObj) {
+    const modes = stateObj.attributes.supported_color_modes || [];
+    return modes.some(m => ['hs', 'rgb', 'rgbw', 'rgbww', 'xy'].includes(m));
+  }
+
+  /**
+   * checks if entity supports white/color-temp modes
+   * @param {LightEntity} stateObj
+   * @return {boolean}
+   */
+  _supportsWhite(stateObj) {
+    const modes = stateObj.attributes.supported_color_modes || [];
+    return modes.some(m => ['color_temp', 'white'].includes(m));
+  }
+
+  /**
+   * creates RGB/White mode toggle
+   * @return {TemplateResult}
+   */
+  _createModeToggle() {
+    return html`
+      <div class="light-entity-card__mode-toggle">
+        <button
+          class="light-entity-card__mode-btn ${this._colorMode === 'rgb' ? 'light-entity-card__mode-btn--active' : ''}"
+          @click=${() => { this._colorMode = 'rgb'; }}
+        >RGB</button>
+        <button
+          class="light-entity-card__mode-btn ${this._colorMode === 'white' ? 'light-entity-card__mode-btn--active' : ''}"
+          @click=${() => { this._colorMode = 'white'; }}
+        >White</button>
+      </div>
     `;
   }
 

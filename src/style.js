@@ -102,6 +102,44 @@ const style = css`
     margin-right: 8px;
   }
 
+  .light-entity-card__mode-toggle {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0 4px;
+    gap: 0;
+  }
+
+  .light-entity-card__mode-btn {
+    padding: 6px 20px;
+    border: 1px solid var(--divider-color, #e0e0e0);
+    background: transparent;
+    color: var(--primary-text-color, #212121);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    outline: none;
+  }
+
+  .light-entity-card__mode-btn:first-child {
+    border-radius: 16px 0 0 16px;
+  }
+
+  .light-entity-card__mode-btn:last-child {
+    border-radius: 0 16px 16px 0;
+    border-left: none;
+  }
+
+  .light-entity-card__mode-btn--active {
+    background: var(--primary-color, #03a9f4);
+    color: white;
+    border-color: var(--primary-color, #03a9f4);
+  }
+
+  .light-entity-card__mode-btn:hover:not(.light-entity-card__mode-btn--active) {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
 `;
 
 export default style;
