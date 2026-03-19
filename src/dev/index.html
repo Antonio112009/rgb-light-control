@@ -24,13 +24,15 @@
     }
 
     h1 { font-size: 1.4em; margin-bottom: 8px; }
-    h2 { font-size: 1.1em; margin-bottom: 8px; }
+    h2 { font-size: 1.1em; margin-bottom: 8px; color: #333; }
+    h3 { font-size: 0.95em; margin: 12px 0 4px; color: #666; }
+    hr { border: none; border-top: 1px solid #e0e0e0; margin: 12px 0; }
 
     .layout {
       display: flex;
       gap: 24px;
       flex-wrap: wrap;
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
     }
 
@@ -40,31 +42,41 @@
     }
 
     .controls-panel {
-      flex: 0 0 320px;
+      flex: 0 0 360px;
       background: white;
       border-radius: 8px;
       padding: 16px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .controls-panel label {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin: 8px 0;
-      font-size: 14px;
+      margin: 6px 0;
+      font-size: 13px;
     }
 
     .controls-panel input[type="range"] { flex: 1; }
-    .controls-panel select { width: 100%; padding: 4px; margin: 4px 0; }
+    .controls-panel select { width: 100%; padding: 4px; margin: 4px 0; font-size: 13px; }
+    .controls-panel input[type="text"] { flex: 1; padding: 4px; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 12px;
+    }
 
     .status-bar {
       background: #e8f5e9;
       border-radius: 4px;
       padding: 8px 12px;
-      margin-bottom: 16px;
-      font-size: 13px;
+      margin-bottom: 12px;
+      font-size: 12px;
       font-family: monospace;
+      word-break: break-all;
     }
 
     .status-bar.off { background: #fce4ec; }
@@ -79,6 +91,7 @@
   </div>
 
   <div class="controls-panel">
+    <!-- ======================== Entity State ======================== -->
     <h2>Mock Entity State</h2>
     <div id="status-bar" class="status-bar">light.living_room: on</div>
 
@@ -112,6 +125,24 @@
     </label>
 
     <label>
+      Speed
+      <input type="range" id="ctrl-speed" min="0" max="255" value="0">
+      <span id="ctrl-speed-val">0</span>
+    </label>
+
+    <label>
+      Intensity
+      <input type="range" id="ctrl-intensity" min="0" max="255" value="0">
+      <span id="ctrl-intensity-val">0</span>
+    </label>
+
+    <label>
+      White
+      <input type="range" id="ctrl-white" min="0" max="255" value="0">
+      <span id="ctrl-white-val">0</span>
+    </label>
+
+    <label>
       Effect
       <select id="ctrl-effect">
         <option value="">None</option>
@@ -123,27 +154,78 @@
       </select>
     </label>
 
+    <label>
+      Color Mode
+      <select id="ctrl-colormode">
+        <option value="hs,color_temp,rgb">hs + color_temp + rgb</option>
+        <option value="hs,color_temp,rgbw">hs + color_temp + rgbw</option>
+        <option value="hs,color_temp,rgbww">hs + color_temp + rgbww</option>
+        <option value="hs,rgb">hs + rgb</option>
+        <option value="color_temp">color_temp only</option>
+        <option value="brightness">brightness only</option>
+      </select>
+    </label>
+
     <hr>
+
+    <!-- ======================== Card Config ======================== -->
     <h2>Card Config</h2>
+
+    <h3>Entity</h3>
     <label>
-      <input type="checkbox" id="cfg-color-picker" checked>
-      Show Color Picker
+      entity
+      <select id="cfg-entity">
+        <option value="light.living_room">light.living_room</option>
+        <option value="switch.living_room">switch.living_room</option>
+      </select>
     </label>
+
     <label>
-      <input type="checkbox" id="cfg-effects" checked>
-      Show Effects List
+      header
+      <input type="text" id="cfg-header" placeholder="(auto from entity name)">
     </label>
+
+    <h3>Feature Visibility</h3>
+    <div class="checkbox-grid">
+      <label><input type="checkbox" id="cfg-brightness" checked> brightness</label>
+      <label><input type="checkbox" id="cfg-color_temp" checked> color_temp</label>
+      <label><input type="checkbox" id="cfg-white_value" checked> white_value</label>
+      <label><input type="checkbox" id="cfg-warm_white_value" checked> warm_white_value</label>
+      <label><input type="checkbox" id="cfg-color_picker" checked> color_picker</label>
+      <label><input type="checkbox" id="cfg-effects_list" checked> effects_list</label>
+      <label><input type="checkbox" id="cfg-speed"> speed</label>
+      <label><input type="checkbox" id="cfg-intensity"> intensity</label>
+      <label><input type="checkbox" id="cfg-force_features"> force_features</label>
+      <label><input type="checkbox" id="cfg-persist_features"> persist_features</label>
+    </div>
+
+    <h3>Display Options</h3>
+    <div class="checkbox-grid">
+      <label><input type="checkbox" id="cfg-shorten_cards"> shorten_cards</label>
+      <label><input type="checkbox" id="cfg-consolidate_entities"> consolidate_entities</label>
+      <label><input type="checkbox" id="cfg-full_width_sliders"> full_width_sliders</label>
+      <label><input type="checkbox" id="cfg-show_slider_percent" checked> show_slider_percent</label>
+      <label><input type="checkbox" id="cfg-show_brightness_percent"> show_brightness_%</label>
+      <label><input type="checkbox" id="cfg-show_color_temp_percent"> show_color_temp_%</label>
+      <label><input type="checkbox" id="cfg-color_temp_in_kelvin"> color_temp_in_kelvin</label>
+      <label><input type="checkbox" id="cfg-hide_header"> hide_header</label>
+      <label><input type="checkbox" id="cfg-show_header_icon"> show_header_icon</label>
+      <label><input type="checkbox" id="cfg-child_card"> child_card</label>
+    </div>
+
+    <h3>Icons</h3>
+    <label>brightness_icon <input type="text" id="cfg-brightness_icon" value="weather-sunny"></label>
+    <label>white_icon <input type="text" id="cfg-white_icon" value="file-word-box"></label>
+    <label>warm_white_icon <input type="text" id="cfg-warm_white_icon" value="weather-sunset"></label>
+    <label>temperature_icon <input type="text" id="cfg-temperature_icon" value="thermometer"></label>
+    <label>speed_icon <input type="text" id="cfg-speed_icon" value="speedometer"></label>
+    <label>intensity_icon <input type="text" id="cfg-intensity_icon" value="transit-connection-horizontal"></label>
+
+    <h3>Transition</h3>
     <label>
-      <input type="checkbox" id="cfg-percent" checked>
-      Show Slider Percent
-    </label>
-    <label>
-      <input type="checkbox" id="cfg-kelvin">
-      Color Temp in Kelvin
-    </label>
-    <label>
-      <input type="checkbox" id="cfg-persist">
-      Persist Features
+      transition (s)
+      <input type="range" id="cfg-transition" min="0" max="10" step="0.5" value="0">
+      <span id="cfg-transition-val">0</span>
     </label>
   </div>
 </div>
@@ -151,7 +233,6 @@
 <script>
   // ============================================================
   //  Mock hass object & entity state
-  //  (Mock HA elements are in mock-elements.js, loaded via dev-entry.js)
   // ============================================================
 
   const ENTITY_ID = 'light.living_room';
@@ -163,49 +244,111 @@
     hs_color: [220, 65],
     color_temp_kelvin: 4000,
     effect: '',
+    speed: 0,
+    intensity: 0,
+    white_value: 0,
+    supported_color_modes: ['hs', 'color_temp', 'rgb'],
   };
 
-  let currentConfig = {
-    entity: ENTITY_ID,
-    color_picker: true,
-    effects_list: true,
-    show_slider_percent: true,
-    color_temp_in_kelvin: false,
-    persist_features: false,
-  };
+  function getConfig() {
+    const cfg = { entity: document.getElementById('cfg-entity').value };
+    const header = document.getElementById('cfg-header').value.trim();
+    if (header) cfg.header = header;
+
+    // Boolean feature toggles
+    const booleans = [
+      'brightness', 'color_temp', 'white_value', 'warm_white_value',
+      'color_picker', 'effects_list', 'speed', 'intensity',
+      'force_features', 'persist_features',
+      'shorten_cards', 'consolidate_entities', 'full_width_sliders',
+      'show_slider_percent', 'show_brightness_percent', 'show_color_temp_percent',
+      'color_temp_in_kelvin', 'hide_header', 'show_header_icon', 'child_card',
+    ];
+    booleans.forEach(key => {
+      const el = document.getElementById('cfg-' + key);
+      if (el) cfg[key] = el.checked;
+    });
+
+    // Icon strings
+    const icons = [
+      'brightness_icon', 'white_icon', 'warm_white_icon',
+      'temperature_icon', 'speed_icon', 'intensity_icon',
+    ];
+    icons.forEach(key => {
+      const el = document.getElementById('cfg-' + key);
+      if (el && el.value.trim()) cfg[key] = el.value.trim();
+    });
+
+    // Transition
+    const transition = parseFloat(document.getElementById('cfg-transition').value);
+    if (transition > 0) cfg.transition = transition;
+
+    return cfg;
+  }
 
   function buildHass() {
+    const entityId = document.getElementById('cfg-entity').value;
+    const modes = currentState.supported_color_modes;
+    const hasSpeed = currentState.speed > 0;
+    const hasIntensity = currentState.intensity > 0;
+    const isRgbw = modes.some(m => m === 'rgbw' || m === 'rgbww');
+
+    const attrs = {
+      friendly_name: 'Living Room Light',
+      brightness: currentState.brightness,
+      hs_color: [...currentState.hs_color],
+      rgb_color: [100, 149, 237],
+      color_temp_kelvin: currentState.color_temp_kelvin,
+      min_color_temp_kelvin: 2000,
+      max_color_temp_kelvin: 6500,
+      supported_color_modes: modes,
+      supported_features: 63,
+      effect: currentState.effect,
+      effect_list: ['Rainbow', 'Breathe', 'Strobe', 'Color Loop', 'Candle'],
+    };
+
+    // WLED-style speed/intensity
+    if (hasSpeed) attrs.speed = currentState.speed;
+    if (hasIntensity) attrs.intensity = currentState.intensity;
+
+    // White channel
+    if (modes.includes('rgbw')) {
+      attrs.rgbw_color = [100, 149, 237, currentState.white_value];
+    }
+    if (modes.includes('rgbww')) {
+      attrs.rgbww_color = [100, 149, 237, currentState.white_value, 0];
+    }
+    if (currentState.white_value > 0 && !isRgbw) {
+      attrs.white_value = currentState.white_value;
+    }
+
+    // Switch entity has minimal attributes
+    const states = {};
+    if (entityId.startsWith('switch.')) {
+      states[entityId] = {
+        entity_id: entityId,
+        state: currentState.state,
+        attributes: { friendly_name: 'Living Room Switch' },
+      };
+    } else {
+      states[entityId] = {
+        entity_id: entityId,
+        state: currentState.state,
+        attributes: attrs,
+      };
+    }
+
     return {
-      states: {
-        [ENTITY_ID]: {
-          entity_id: ENTITY_ID,
-          state: currentState.state,
-          attributes: {
-            friendly_name: 'Living Room Light',
-            brightness: currentState.brightness,
-            hs_color: [...currentState.hs_color],
-            rgb_color: [100, 149, 237],
-            color_temp_kelvin: currentState.color_temp_kelvin,
-            min_color_temp_kelvin: 2000,
-            max_color_temp_kelvin: 6500,
-            supported_color_modes: ['hs', 'color_temp', 'rgb'],
-            supported_features: 63,
-            effect: currentState.effect,
-            effect_list: ['Rainbow', 'Breathe', 'Strobe', 'Color Loop', 'Candle'],
-          },
-        },
-      },
+      states,
       localize: (key) => {
         const map = { 'ui.card.light.effect': 'Effect' };
         return map[key] || key;
       },
-      // When the card calls a service, update our mock state and re-render
       callService: (domain, service, data) => {
         const statusBar = document.getElementById('status-bar');
         statusBar.textContent = `${domain}.${service}(${JSON.stringify(data)})`;
         console.log(`[hass.callService] ${domain}.${service}`, data);
 
-        // Simulate HA backend: apply service data back to state
         if (service === 'turn_off') {
           currentState.state = 'off';
           syncControlsFromState();
@@ -215,9 +358,13 @@
           if (data.hs_color) currentState.hs_color = [...data.hs_color];
           if (data.color_temp_kelvin !== undefined) currentState.color_temp_kelvin = data.color_temp_kelvin;
           if (data.effect !== undefined) currentState.effect = data.effect;
+          if (data.speed !== undefined) currentState.speed = data.speed;
+          if (data.intensity !== undefined) currentState.intensity = data.intensity;
+          if (data.white_value !== undefined) currentState.white_value = data.white_value;
+          if (data.rgbw_color) currentState.white_value = data.rgbw_color[3];
+          if (data.rgbww_color) currentState.white_value = data.rgbww_color[3];
           syncControlsFromState();
         }
-        // Feed updated state back to card
         updateCard();
       },
     };
@@ -232,37 +379,38 @@
     const container = document.getElementById('card-container');
     container.innerHTML = '';
     const card = document.createElement('light-entity-card');
-    card.setConfig({ ...currentConfig });
+    card.setConfig(getConfig());
     card.hass = buildHass();
     container.appendChild(card);
     cardRef = card;
   }
 
-  // Sync right-panel controls to reflect current state
   function syncControlsFromState() {
-    const power = document.getElementById('ctrl-power');
-    power.checked = currentState.state === 'on';
+    document.getElementById('ctrl-power').checked = currentState.state === 'on';
 
     const bar = document.getElementById('status-bar');
-    bar.textContent = `${ENTITY_ID}: ${currentState.state}`;
+    bar.textContent = `${document.getElementById('cfg-entity').value}: ${currentState.state}`;
     bar.className = currentState.state === 'on' ? 'status-bar' : 'status-bar off';
 
-    document.getElementById('ctrl-brightness').value = currentState.brightness;
-    document.getElementById('ctrl-brightness-val').textContent = currentState.brightness;
-
-    document.getElementById('ctrl-colortemp').value = currentState.color_temp_kelvin;
-    document.getElementById('ctrl-colortemp-val').textContent = currentState.color_temp_kelvin;
-
-    document.getElementById('ctrl-hue').value = currentState.hs_color[0];
-    document.getElementById('ctrl-hue-val').textContent = Math.round(currentState.hs_color[0]);
-
-    document.getElementById('ctrl-sat').value = currentState.hs_color[1];
-    document.getElementById('ctrl-sat-val').textContent = Math.round(currentState.hs_color[1]);
+    const syncRange = (id, val) => {
+      document.getElementById(id).value = val;
+      document.getElementById(id + '-val').textContent = Math.round(val);
+    };
+    syncRange('ctrl-brightness', currentState.brightness);
+    syncRange('ctrl-colortemp', currentState.color_temp_kelvin);
+    syncRange('ctrl-hue', currentState.hs_color[0]);
+    syncRange('ctrl-sat', currentState.hs_color[1]);
+    syncRange('ctrl-speed', currentState.speed);
+    syncRange('ctrl-intensity', currentState.intensity);
+    syncRange('ctrl-white', currentState.white_value);
 
     document.getElementById('ctrl-effect').value = currentState.effect;
   }
 
-  // Wait for the card bundle to load, then initialize
+  // ============================================================
+  //  Init & Controls
+  // ============================================================
+
   function init() {
     if (!customElements.get('light-entity-card')) {
       setTimeout(init, 100);
@@ -280,7 +428,7 @@
       updateCard();
     });
 
-    // Range sliders
+    // Range sliders for entity state
     function rangeCtrl(id, stateKey, valId) {
       const input = document.getElementById(id);
       const valSpan = document.getElementById(valId);
@@ -301,6 +449,9 @@
     rangeCtrl('ctrl-colortemp', 'color_temp_kelvin', 'ctrl-colortemp-val');
     rangeCtrl('ctrl-hue', 'hs_color', 'ctrl-hue-val');
     rangeCtrl('ctrl-sat', 'sat', 'ctrl-sat-val');
+    rangeCtrl('ctrl-speed', 'speed', 'ctrl-speed-val');
+    rangeCtrl('ctrl-intensity', 'intensity', 'ctrl-intensity-val');
+    rangeCtrl('ctrl-white', 'white_value', 'ctrl-white-val');
 
     // Effect select
     document.getElementById('ctrl-effect').addEventListener('change', (e) => {
@@ -308,18 +459,39 @@
       updateCard();
     });
 
-    // Config checkboxes (recreate card on config change)
-    function configCheckbox(id, configKey) {
-      document.getElementById(id).addEventListener('change', (e) => {
-        currentConfig[configKey] = e.target.checked;
-        recreateCard();
+    // Color mode select
+    document.getElementById('ctrl-colormode').addEventListener('change', (e) => {
+      currentState.supported_color_modes = e.target.value.split(',');
+      recreateCard();
+    });
+
+    // ALL config controls → recreate card on change
+    // Checkboxes
+    document.querySelectorAll('.controls-panel [id^="cfg-"]').forEach(el => {
+      if (el.type === 'checkbox') {
+        el.addEventListener('change', () => recreateCard());
+      }
+    });
+
+    // Selects
+    document.getElementById('cfg-entity').addEventListener('change', () => recreateCard());
+
+    // Text inputs (debounced)
+    let textTimeout;
+    document.querySelectorAll('.controls-panel input[type="text"]').forEach(el => {
+      el.addEventListener('input', () => {
+        clearTimeout(textTimeout);
+        textTimeout = setTimeout(() => recreateCard(), 400);
       });
-    }
-    configCheckbox('cfg-color-picker', 'color_picker');
-    configCheckbox('cfg-effects', 'effects_list');
-    configCheckbox('cfg-percent', 'show_slider_percent');
-    configCheckbox('cfg-kelvin', 'color_temp_in_kelvin');
-    configCheckbox('cfg-persist', 'persist_features');
+    });
+
+    // Transition slider
+    const transInput = document.getElementById('cfg-transition');
+    const transVal = document.getElementById('cfg-transition-val');
+    transInput.addEventListener('input', () => {
+      transVal.textContent = transInput.value;
+      recreateCard();
+    });
   }
 
   if (document.readyState === 'loading') {

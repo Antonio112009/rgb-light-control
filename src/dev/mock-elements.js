@@ -32,10 +32,18 @@ safeDefine('ha-card', MockHaCard);
 
 // -- ha-switch --
 class MockHaSwitch extends HTMLElement {
-  get checked() { return this._checked; }
-  set checked(v) {
-    this._checked = Boolean(v);
-    if (this._input) this._input.checked = this._checked;
+  constructor() {
+    super();
+    this.__checked = false;
+    Object.defineProperty(this, 'checked', {
+      get: () => this.__checked,
+      set: (v) => {
+        this.__checked = Boolean(v);
+        if (this._input) this._input.checked = this.__checked;
+      },
+      enumerable: true,
+      configurable: true,
+    });
   }
   connectedCallback() {
     if (!this.shadowRoot) {
@@ -49,12 +57,11 @@ class MockHaSwitch extends HTMLElement {
       `;
       this._input = this.shadowRoot.querySelector('input');
       this._input.addEventListener('change', () => {
-        this._checked = this._input.checked;
+        this.__checked = this._input.checked;
         this.dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
-    // Sync after connect — .checked may have been set before shadow DOM existed
-    if (this._input) this._input.checked = this._checked || false;
+    if (this._input) this._input.checked = this.__checked;
   }
 }
 safeDefine('ha-switch', MockHaSwitch);
@@ -74,26 +81,44 @@ class MockHaIcon extends HTMLElement {
 safeDefine('ha-icon', MockHaIcon);
 
 // -- ha-slider --
+// NOTE: Lit's .value= binding sets an own data property on the instance,
+// which shadows prototype get/set accessors. We must define accessors in
+// the constructor via Object.defineProperty so they live on the instance
+// and can't be shadowed by Lit's property assignment.
 class MockHaSlider extends HTMLElement {
   static get observedAttributes() { return ['min', 'max', 'value']; }
 
-  get value() { return this._input ? this._input.value : (this._value ?? '0'); }
-  set value(v) {
-    this._value = v;
-    this._syncInput();
+  constructor() {
+    super();
+    this.__value = undefined;
+    this.__min = undefined;
+    this.__max = undefined;
+
+    Object.defineProperty(this, 'value', {
+      get: () => this._input ? this._input.value : (this.__value ?? '0'),
+      set: (v) => { this.__value = v; this._syncInput(); },
+      enumerable: true,
+      configurable: true,
+    });
+    Object.defineProperty(this, 'min', {
+      get: () => this.__min ?? this.getAttribute('min') ?? '0',
+      set: (v) => { this.__min = v; this._syncInput(); },
+      enumerable: true,
+      configurable: true,
+    });
+    Object.defineProperty(this, 'max', {
+      get: () => this.__max ?? this.getAttribute('max') ?? '255',
+      set: (v) => { this.__max = v; this._syncInput(); },
+      enumerable: true,
+      configurable: true,
+    });
   }
-
-  get min() { return this._min ?? this.getAttribute('min') ?? '0'; }
-  set min(v) { this._min = v; this._syncInput(); }
-
-  get max() { return this._max ?? this.getAttribute('max') ?? '255'; }
-  set max(v) { this._max = v; this._syncInput(); }
 
   _syncInput() {
     if (!this._input) return;
-    if (this._min !== undefined) this._input.min = this._min;
-    if (this._max !== undefined) this._input.max = this._max;
-    if (this._value !== undefined) this._input.value = this._value;
+    if (this.__min !== undefined) this._input.min = this.__min;
+    if (this.__max !== undefined) this._input.max = this.__max;
+    if (this.__value !== undefined) this._input.value = this.__value;
   }
 
   connectedCallback() {
@@ -111,14 +136,13 @@ class MockHaSlider extends HTMLElement {
         this.dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
-    // Always sync after connect — properties may have been set before connectedCallback
     this._syncInput();
   }
 
   attributeChangedCallback(name, _, newVal) {
-    if (name === 'value') this._value = newVal;
-    if (name === 'min') this._min = newVal;
-    if (name === 'max') this._max = newVal;
+    if (name === 'value') this.__value = newVal;
+    if (name === 'min') this.__min = newVal;
+    if (name === 'max') this.__max = newVal;
     this._syncInput();
   }
 }
@@ -126,8 +150,16 @@ safeDefine('ha-slider', MockHaSlider);
 
 // -- ha-hs-color-picker (simplified mock) --
 class MockHsColorPicker extends HTMLElement {
-  get value() { return this._value || [0, 0]; }
-  set value(v) { this._value = v; this._render(); }
+  constructor() {
+    super();
+    this.__value = [0, 0];
+    Object.defineProperty(this, 'value', {
+      get: () => this.__value,
+      set: (v) => { this.__value = v || [0, 0]; this._render(); },
+      enumerable: true,
+      configurable: true,
+    });
+  }
   connectedCallback() {
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
@@ -135,7 +167,7 @@ class MockHsColorPicker extends HTMLElement {
     }
   }
   _render() {
-    const [h, s] = this._value || [0, 0];
+    const [h, s] = this.__value || [0, 0];
     if (!this.shadowRoot) return;
     this.shadowRoot.innerHTML = `
       <style>
@@ -216,7 +248,16 @@ safeDefine('mwc-list-item', MockMwcListItem);
 
 // -- state-badge --
 class MockStateBadge extends HTMLElement {
-  set stateObj(v) { this._stateObj = v; this._render(); }
+  constructor() {
+    super();
+    this.__stateObj = null;
+    Object.defineProperty(this, 'stateObj', {
+      get: () => this.__stateObj,
+      set: (v) => { this.__stateObj = v; this._render(); },
+      enumerable: true,
+      configurable: true,
+    });
+  }
   connectedCallback() {
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
@@ -225,7 +266,7 @@ class MockStateBadge extends HTMLElement {
   }
   _render() {
     if (!this.shadowRoot) return;
-    const on = this._stateObj && this._stateObj.state === 'on';
+    const on = this.__stateObj && this.__stateObj.state === 'on';
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; }
