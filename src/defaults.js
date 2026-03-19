@@ -16,6 +16,8 @@ export default {
   speed: true,
   intensity: true,
 
+  white_mode: 'auto', // 'auto' = detect from entity, 'range' = color temp slider, 'fixed' = plain white
+
   force_features: false,
 
   show_slider_percent: false,

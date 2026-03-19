@@ -62,9 +62,6 @@ const style = css`
     width: 100%;
   }
 
-  .light-entity-card__color-picker-toggle {
-    margin-top: 12px;
-  }
   
   .light-entity-card-color_temp {
     background-image: var(--ha-slider-background, linear-gradient(to right, #a6d1ff, #ffb74d));

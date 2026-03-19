@@ -235,16 +235,18 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const isRgbMode = !showModeToggle || this._colorMode === 'rgb';
     const isWhiteMode = !showModeToggle || this._colorMode === 'white';
 
+    const isFixedWhite = this._isFixedWhite(stateObj);
+
     return html`
       ${this.createHeader(stateObj)}
-      ${showModeToggle ? this._createModeToggle() : ''}
+      ${showModeToggle ? this._createModeToggle(stateObj) : ''}
       <div class="light-entity-card-sliders ${sliderClass}">
         ${this.createBrightnessSlider(stateObj)}
         ${this.createSpeedSlider(stateObj)}
         ${this.createIntensitySlider(stateObj)}
-        ${isWhiteMode ? this.createColorTemperature(stateObj) : ''}
+        ${isWhiteMode && !isFixedWhite ? this.createColorTemperature(stateObj) : ''}
         ${isWhiteMode ? this.createWhiteValue(stateObj) : ''}
-        ${isWhiteMode ? this.createWarmWhiteValue(stateObj) : ''}
+        ${isWhiteMode && !isFixedWhite ? this.createWarmWhiteValue(stateObj) : ''}
       </div>
       ${isRgbMode ? this.createColorPicker(stateObj) : ''}
       ${this.createEffectList(stateObj)}
@@ -272,19 +274,79 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 
   /**
+   * determines if the entity has fixed white (no color temp range)
+   * auto-detects from supported_color_modes, or uses config override
+   * @param {LightEntity} stateObj
+   * @return {boolean}
+   */
+  _isFixedWhite(stateObj) {
+    const setting = this.config.white_mode;
+    if (setting === 'fixed') return true;
+    if (setting === 'range') return false;
+
+    // Auto-detect: check if entity supports color_temp or rgbww (= range)
+    // If only 'white' or 'rgbw' without color_temp/rgbww → fixed
+    const modes = stateObj.attributes.supported_color_modes || [];
+    const hasRange = modes.some(m => ['color_temp', 'rgbww'].includes(m));
+    return !hasRange;
+  }
+
+  /**
+   * switches color mode and sends appropriate service call to apply the mode's color
+   * @param {string} mode - 'rgb' or 'white'
+   * @param {LightEntity} stateObj
+   */
+  _switchColorMode(mode, stateObj) {
+    if (this._colorMode === mode) return;
+    this._colorMode = mode;
+
+    if (!this.isEntityOn(stateObj)) return;
+
+    if (mode === 'white') {
+      if (this._isFixedWhite(stateObj)) {
+        // Fixed white — just set white value (brightness handles the rest)
+        const whiteValue = this.getWhiteValue(stateObj, 3) || 255;
+        const colorModes = stateObj.attributes.supported_color_modes || [];
+        if (colorModes.includes('white')) {
+          this.callEntityService({ white: whiteValue }, stateObj);
+        } else if (colorModes.includes('rgbw')) {
+          this.callEntityService({ rgbw_color: [255, 255, 255, whiteValue] }, stateObj);
+        } else {
+          this.callEntityService({ color_temp_kelvin: 4000 }, stateObj);
+        }
+      } else {
+        // Range white — switch to color_temp mode
+        const range = this._getColorTempRange(stateObj);
+        if (range) {
+          const kelvin = range.kelvin ?? Math.round((range.minK + range.maxK) / 2);
+          if (range.usesKelvin) {
+            this.callEntityService({ color_temp_kelvin: kelvin }, stateObj);
+          } else {
+            this.callEntityService({ color_temp: Math.round(MIRED_KELVIN_FACTOR / kelvin) }, stateObj);
+          }
+        }
+      }
+    } else {
+      // Switch to HS mode — send current or default HS color
+      const hs = stateObj.attributes.hs_color || [0, 100];
+      this.callEntityService({ hs_color: hs }, stateObj);
+    }
+  }
+
+  /**
    * creates RGB/White mode toggle
    * @return {TemplateResult}
    */
-  _createModeToggle() {
+  _createModeToggle(stateObj) {
     return html`
       <div class="light-entity-card__mode-toggle">
         <button
           class="light-entity-card__mode-btn ${this._colorMode === 'rgb' ? 'light-entity-card__mode-btn--active' : ''}"
-          @click=${() => { this._colorMode = 'rgb'; }}
+          @click=${() => this._switchColorMode('rgb', stateObj)}
         >RGB</button>
         <button
           class="light-entity-card__mode-btn ${this._colorMode === 'white' ? 'light-entity-card__mode-btn--active' : ''}"
-          @click=${() => { this._colorMode = 'white'; }}
+          @click=${() => this._switchColorMode('white', stateObj)}
         >White</button>
       </div>
     `;
@@ -713,13 +775,6 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           @cursor-moved=${(e) => { this._colorPickerValues = { ...this._colorPickerValues, [stateObj.entity_id]: e.detail.value }; }}
           @value-changed=${(e) => this._onColorPickerChanged(e.detail.value, stateObj)}
         ></ha-hs-color-picker>
-        <div class="light-entity-card__color-picker-toggle">
-          <ha-switch
-            .checked=${this.isEntityOn(stateObj)}
-            @change=${e => this.setToggle(e, stateObj)}
-            aria-label="Toggle light"
-          ></ha-switch>
-        </div>
       </div>
     `;
   }
