@@ -304,6 +304,20 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
             </ha-formfield>
           </div>
           </div>
+
+          <div class='entities'>
+            <ha-select
+              label="White Mode"
+              @selected="${this.selectConfigChanged}"
+              @closed="${e => e.stopPropagation()}"
+              .configValue="${'white_mode'}"
+              .value="${this._config.white_mode || 'auto'}"
+            >
+              <mwc-list-item value="auto">Auto (detect from entity)</mwc-list-item>
+              <mwc-list-item value="range">Range (warm/cool slider)</mwc-list-item>
+              <mwc-list-item value="fixed">Fixed (plain white)</mwc-list-item>
+            </ha-select>
+          </div>
       </div>
     `;
   }
@@ -332,6 +346,16 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
 
     this._config = { ...this._config, [value]: checked };
 
+    fireEvent(this, 'config-changed', { config: this._config });
+  }
+
+  selectConfigChanged(ev) {
+    if (!this._config || !this.hass || !this._firstRendered) return;
+    const { configValue } = ev.target;
+    const value = ev.target.value;
+    if (!configValue || !value) return;
+
+    this._config = { ...this._config, [configValue]: value };
     fireEvent(this, 'config-changed', { config: this._config });
   }
 }

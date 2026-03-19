@@ -80,8 +80,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       ...config,
     };
 
+    // _colorMode will be auto-detected from entity state on first render
     if (this._colorMode === undefined) {
-      this._colorMode = config.default_color_mode || 'rgb';
+      this._colorMode = null;
     }
   }
 
@@ -232,6 +233,14 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const supportsRgb = this._supportsRgb(stateObj);
     const supportsWhite = this._supportsWhite(stateObj);
     const showModeToggle = supportsRgb && supportsWhite;
+
+    // Auto-detect color mode from entity on first render
+    if (this._colorMode === null && showModeToggle) {
+      this._colorMode = this._detectColorMode(stateObj);
+    } else if (this._colorMode === null) {
+      this._colorMode = supportsRgb ? 'rgb' : 'white';
+    }
+
     const isRgbMode = !showModeToggle || this._colorMode === 'rgb';
     const isWhiteMode = !showModeToggle || this._colorMode === 'white';
 
