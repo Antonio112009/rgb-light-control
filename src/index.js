@@ -92,36 +92,49 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       this.config.color_picker !== false && this.config.entity.startsWith('light.');
 
     if (needsColorPicker && !customElements.get('ha-hs-color-picker')) {
-      const ha = document.querySelector('home-assistant');
-      if (ha) {
-        // Hide the dialog to prevent a visible flash
-        const hideStyle = document.createElement('style');
-        hideStyle.textContent = 'ha-more-info-dialog { display: none !important; }';
-        ha.shadowRoot.appendChild(hideStyle);
-
-        // Open then immediately close the more-info dialog to trigger lazy loading
-        ha.dispatchEvent(new CustomEvent('hass-more-info', {
-          detail: { entityId: this.config.entity },
-          bubbles: true, composed: true,
-        }));
-
-        try {
-          await Promise.race([
-            customElements.whenDefined('ha-hs-color-picker'),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-          ]);
-        } catch {
-          // Timed out — color picker will appear when user opens a dialog manually
-        } finally {
-          ha.dispatchEvent(new CustomEvent('hass-more-info', {
-            detail: { entityId: '' },
-            bubbles: true, composed: true,
-          }));
-          hideStyle.remove();
-        }
-      }
+      await this._forceLoadColorPicker();
       this._colorPickerReady = true;
       this.requestUpdate();
+    }
+  }
+
+  async _forceLoadColorPicker() {
+    const ha = document.querySelector('home-assistant');
+    if (!ha) return;
+
+    // Hide the dialog to prevent a visible flash
+    const hideStyle = document.createElement('style');
+    hideStyle.textContent = 'ha-more-info-dialog { display: none !important; }';
+    ha.shadowRoot.appendChild(hideStyle);
+
+    // Open the more-info dialog to trigger HA's lazy loading
+    ha.dispatchEvent(new CustomEvent('hass-more-info', {
+      detail: { entityId: this.config.entity },
+      bubbles: true, composed: true,
+    }));
+
+    // Wait longer — some HA installations take a while to load the dialog tree
+    try {
+      await Promise.race([
+        customElements.whenDefined('ha-hs-color-picker'),
+        new Promise(resolve => setTimeout(resolve, 10000)),
+      ]);
+    } finally {
+      // Close the hidden dialog
+      ha.dispatchEvent(new CustomEvent('hass-more-info', {
+        detail: { entityId: '' },
+        bubbles: true, composed: true,
+      }));
+      hideStyle.remove();
+    }
+
+    // If still not defined after 10s, keep the dialog open a bit longer with retry
+    if (!customElements.get('ha-hs-color-picker')) {
+      // Last resort: wait indefinitely in background for whenever HA loads it
+      customElements.whenDefined('ha-hs-color-picker').then(() => {
+        this._colorPickerReady = true;
+        this.requestUpdate();
+      });
     }
   }
 
@@ -684,7 +697,6 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _createColorPicker(stateObj) {
     if (this.config.color_picker === false) return html``;
     if (!this.shouldShowFeature('color', stateObj)) return html``;
-    if (!customElements.get('ha-hs-color-picker')) return html``;
 
     const haHs = stateObj.attributes.hs_color || [0, 0];
     const pickerValue =
