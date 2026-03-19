@@ -279,8 +279,8 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         ${isWhite && !isFixed ? this._createColorTemperature(stateObj) : ''}
         ${isWhite ? this._createWhiteValue(stateObj) : ''}
         ${isWhite && !isFixed ? this._createWarmWhiteValue(stateObj) : ''}
+        ${isRgb ? this._createSaturationSlider(stateObj) : ''}
       </div>
-      ${isRgb ? this._createSaturationSlider(stateObj) : ''}
       ${isRgb ? this._createRgbViewSwitch() : ''}
       ${isRgb && this._rgbView === 'dots' ? this._createColorDots(stateObj) : ''}
       ${isRgb && this._rgbView === 'wheel' ? this._createColorPicker(stateObj) : ''}

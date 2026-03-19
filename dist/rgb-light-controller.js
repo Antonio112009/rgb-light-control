@@ -33,6 +33,8 @@ function dt(t){return class extends t{createRenderRoot(){const t=this.constructo
 
   .ha-slider-full-width ha-slider {
     width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   .percent-slider {
@@ -54,7 +56,7 @@ function dt(t){return class extends t{createRenderRoot(){const t=this.constructo
   }
 
   .light-entity-card-sliders > div {
-    margin-top: 10px;
+    margin-top: 14px;
   }
 
   .group .light-entity-card-sliders > div {
@@ -160,8 +162,8 @@ function dt(t){return class extends t{createRenderRoot(){const t=this.constructo
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
-    margin: 14px 8px;
+    gap: 12px;
+    margin: 12px 8px 6px;
     padding: 4px;
   }
 
@@ -194,7 +196,7 @@ function dt(t){return class extends t{createRenderRoot(){const t=this.constructo
     justify-content: center;
     align-items: center;
     gap: 8px;
-    margin: 8px 0 4px;
+    margin: 16px 0 8px;
   }
 
   .light-entity-card__rgb-view-label {
@@ -504,8 +506,8 @@ function dt(t){return class extends t{createRenderRoot(){const t=this.constructo
         ${n&&!c?this._createColorTemperature(t):""}
         ${n?this._createWhiteValue(t):""}
         ${n&&!c?this._createWarmWhiteValue(t):""}
+        ${r?this._createSaturationSlider(t):""}
       </div>
-      ${r?this._createSaturationSlider(t):""}
       ${r?this._createRgbViewSwitch():""}
       ${r&&"dots"===this._rgbView?this._createColorDots(t):""}
       ${r&&"wheel"===this._rgbView?this._createColorPicker(t):""}

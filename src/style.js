@@ -17,6 +17,8 @@ const style = css`
 
   .ha-slider-full-width ha-slider {
     width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   .percent-slider {
@@ -38,7 +40,7 @@ const style = css`
   }
 
   .light-entity-card-sliders > div {
-    margin-top: 10px;
+    margin-top: 14px;
   }
 
   .group .light-entity-card-sliders > div {
@@ -144,8 +146,8 @@ const style = css`
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
-    margin: 14px 8px;
+    gap: 12px;
+    margin: 12px 8px 6px;
     padding: 4px;
   }
 
@@ -178,7 +180,7 @@ const style = css`
     justify-content: center;
     align-items: center;
     gap: 8px;
-    margin: 8px 0 4px;
+    margin: 16px 0 8px;
   }
 
   .light-entity-card__rgb-view-label {
