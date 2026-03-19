@@ -308,7 +308,7 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
           <div class='entities'>
             <ha-select
               label="White Mode"
-              @selected="${this._whiteModeChanged}"
+              @change="${this._whiteModeChanged}"
               @closed="${e => e.stopPropagation()}"
             >
               <mwc-list-item value="auto" ?selected=${(this._config.white_mode || 'auto') === 'auto'}>Auto (detect from entity)</mwc-list-item>
@@ -349,14 +349,8 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
 
   _whiteModeChanged(ev) {
     if (!this._config || !this.hass || !this._firstRendered) return;
-    const select = ev.target;
-    const index = ev.detail?.index;
-    // Get value from the selected mwc-list-item
-    const items = select.querySelectorAll('mwc-list-item');
-    const value = (index !== undefined && items[index])
-      ? items[index].getAttribute('value')
-      : select.value;
-    if (!value || value === this._config.white_mode) return;
+    const value = ev.target.value;
+    if (!value || value === (this._config.white_mode || 'auto')) return;
     this._config = { ...this._config, white_mode: value };
     fireEvent(this, 'config-changed', { config: this._config });
   }
