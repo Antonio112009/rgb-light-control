@@ -181,11 +181,14 @@ class MockHaSlider extends HTMLElement {
 }
 safeDefine('ha-slider', MockHaSlider);
 
-// -- ha-hs-color-picker (simplified mock) --
+// -- ha-hs-color-picker (interactive mock) --
 class MockHsColorPicker extends HTMLElement {
   constructor() {
     super();
     this._recoverValue();
+    this._dragging = false;
+    this._onMove = this._onMove.bind(this);
+    this._onUp = this._onUp.bind(this);
   }
   _recoverValue() {
     const desc = Object.getOwnPropertyDescriptor(this, 'value');
@@ -194,7 +197,7 @@ class MockHsColorPicker extends HTMLElement {
     if (this.__value === undefined) this.__value = preValue || [0, 0];
     Object.defineProperty(this, 'value', {
       get: () => this.__value,
-      set: (v) => { this.__value = v || [0, 0]; this._render(); },
+      set: (v) => { this.__value = v || [0, 0]; this._updateMarker(); },
       enumerable: true,
       configurable: true,
     });
@@ -203,34 +206,115 @@ class MockHsColorPicker extends HTMLElement {
     this._recoverValue();
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host { display: block; user-select: none; -webkit-user-select: none; }
+          .wheel {
+            width: 200px; height: 200px; border-radius: 50%;
+            background: conic-gradient(from 0deg, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%));
+            position: relative; cursor: crosshair; margin: 0 auto;
+            overflow: hidden;
+          }
+          .wheel::after {
+            content: '';
+            position: absolute; inset: 0; border-radius: 50%;
+            background: radial-gradient(circle, white 0%, transparent 70%);
+          }
+          .marker {
+            position: absolute; width: 20px; height: 20px;
+            border-radius: 50%; border: 3px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 2;
+          }
+          .label { text-align: center; font-size: 12px; color: #999; margin-top: 6px; }
+        </style>
+        <div class="wheel"><div class="marker"></div></div>
+        <div class="label"></div>
+      `;
+      this._wheel = this.shadowRoot.querySelector('.wheel');
+      this._marker = this.shadowRoot.querySelector('.marker');
+      this._label = this.shadowRoot.querySelector('.label');
+
+      this._wheel.addEventListener('mousedown', (e) => this._onDown(e));
+      this._wheel.addEventListener('touchstart', (e) => this._onDown(e), { passive: false });
     }
-    this._render();
+    this._updateMarker();
   }
-  _render() {
+
+  _getHSFromEvent(e) {
+    const rect = this._wheel.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - rect.left - cx;
+    const dy = clientY - rect.top - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const radius = rect.width / 2;
+
+    // Hue from angle (0 = right, clockwise)
+    let hue = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+    if (hue < 0) hue += 360;
+    // Saturation from distance (0 = center, 1 = edge)
+    const sat = Math.min(dist / radius, 1);
+    return [hue, sat];
+  }
+
+  _onDown(e) {
+    e.preventDefault();
+    this._dragging = true;
+    this._processEvent(e, true);
+    window.addEventListener('mousemove', this._onMove);
+    window.addEventListener('mouseup', this._onUp);
+    window.addEventListener('touchmove', this._onMove, { passive: false });
+    window.addEventListener('touchend', this._onUp);
+  }
+
+  _onMove(e) {
+    if (!this._dragging) return;
+    e.preventDefault();
+    this._processEvent(e, true);
+  }
+
+  _onUp(e) {
+    if (!this._dragging) return;
+    this._dragging = false;
+    this._processEvent(e, false);
+    window.removeEventListener('mousemove', this._onMove);
+    window.removeEventListener('mouseup', this._onUp);
+    window.removeEventListener('touchmove', this._onMove);
+    window.removeEventListener('touchend', this._onUp);
+  }
+
+  _processEvent(e, isCursorMove) {
+    const [hue, sat] = this._getHSFromEvent(e);
+    this.__value = [hue, sat];
+    this._updateMarker();
+
+    if (isCursorMove) {
+      this.dispatchEvent(new CustomEvent('cursor-moved', {
+        detail: { value: [hue, sat] }, bubbles: true, composed: true,
+      }));
+    } else {
+      this.dispatchEvent(new CustomEvent('value-changed', {
+        detail: { value: [hue, sat] }, bubbles: true, composed: true,
+      }));
+    }
+  }
+
+  _updateMarker() {
+    if (!this._marker || !this._label) return;
     const [h, s] = this.__value || [0, 0];
-    if (!this.shadowRoot) return;
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display: block; }
-        .wheel {
-          width: 200px; height: 200px; border-radius: 50%;
-          background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
-          position: relative; cursor: crosshair; margin: 0 auto;
-        }
-        .marker {
-          position: absolute; width: 16px; height: 16px;
-          border-radius: 50%; border: 2px solid white;
-          background: hsl(${h}, ${Math.round(s * 100)}%, 50%);
-          box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-          transform: translate(-50%, -50%);
-          left: ${50 + s * 40 * Math.cos((h - 90) * Math.PI / 180)}%;
-          top: ${50 + s * 40 * Math.sin((h - 90) * Math.PI / 180)}%;
-        }
-        .label { text-align: center; font-size: 12px; color: #999; margin-top: 4px; }
-      </style>
-      <div class="wheel"><div class="marker"></div></div>
-      <div class="label">H: ${Math.round(h)} S: ${Math.round(s * 100)}%</div>
-    `;
+    // Position marker: angle from top, distance from center
+    const angle = (h - 90) * Math.PI / 180;
+    const pct = s * 45; // max 45% from center to stay inside wheel
+    const left = 50 + pct * Math.cos(angle);
+    const top = 50 + pct * Math.sin(angle);
+    this._marker.style.left = left + '%';
+    this._marker.style.top = top + '%';
+    this._marker.style.background = `hsl(${h}, ${Math.round(s * 100)}%, ${100 - s * 50}%)`;
+    this._label.textContent = `H: ${Math.round(h)} S: ${Math.round(s * 100)}%`;
   }
 }
 safeDefine('ha-hs-color-picker', MockHsColorPicker);
