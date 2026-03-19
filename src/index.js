@@ -56,6 +56,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       config: {},
       _colorPickerValues: { state: true },
       _colorMode: { state: true },
+      _rgbView: { state: true }, // 'dots' or 'wheel'
     };
   }
 
@@ -95,6 +96,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     // _colorMode will be auto-detected from entity state on first render
     if (this._colorMode === undefined) {
       this._colorMode = null;
+    }
+    if (this._rgbView === undefined) {
+      this._rgbView = 'dots';
     }
   }
 
@@ -250,11 +254,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (this._colorMode === null && showModeToggle) {
       this._colorMode = this._detectColorMode(stateObj);
     } else if (this._colorMode === null) {
-      this._colorMode = supportsRgb ? 'colors' : 'white';
+      this._colorMode = supportsRgb ? 'rgb' : 'white';
     }
 
-    const isColorsMode = this._colorMode === 'colors';
-    const isRgbMode = !showModeToggle ? true : this._colorMode === 'rgb';
+    const isRgbMode = !showModeToggle || this._colorMode === 'rgb';
     const isWhiteMode = !showModeToggle ? false : this._colorMode === 'white';
 
     const isFixedWhite = this._isFixedWhite();
@@ -270,8 +273,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         ${isWhiteMode ? this.createWhiteValue(stateObj) : ''}
         ${isWhiteMode && !isFixedWhite ? this.createWarmWhiteValue(stateObj) : ''}
       </div>
-      ${isColorsMode ? this._createColorDots(stateObj) : ''}
-      ${isRgbMode ? this.createColorPicker(stateObj) : ''}
+      ${isRgbMode ? this._createSaturationSlider(stateObj) : ''}
+      ${isRgbMode ? this._createRgbViewSwitch() : ''}
+      ${isRgbMode && this._rgbView === 'dots' ? this._createColorDots(stateObj) : ''}
+      ${isRgbMode && this._rgbView === 'wheel' ? this.createColorPicker(stateObj) : ''}
       ${this.createEffectList(stateObj)}
     `;
   }
@@ -285,7 +290,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _detectColorMode(stateObj) {
     const currentMode = stateObj.attributes.color_mode;
     if (['color_temp', 'white'].includes(currentMode)) return 'white';
-    return 'colors'; // default to simple color dots view
+    return 'rgb';
   }
 
   /**
@@ -327,8 +332,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
     if (!this.isEntityOn(stateObj)) return;
 
-    // "colors" mode sends HS just like "rgb"
-    if (mode === 'colors' || mode === 'rgb') {
+    if (mode === 'rgb') {
       const hs = stateObj.attributes.hs_color || [0, 100];
       this.callEntityService({ hs_color: hs }, stateObj);
       return;
@@ -366,19 +370,34 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
    * @return {TemplateResult}
    */
   _createModeToggle(stateObj) {
-    const modes = [
-      { id: 'colors', label: 'Colors' },
-      { id: 'rgb', label: 'RGB' },
-      { id: 'white', label: 'White' },
-    ];
     return html`
       <div class="light-entity-card__mode-toggle">
-        ${modes.map(m => html`
-          <button
-            class="light-entity-card__mode-btn ${this._colorMode === m.id ? 'light-entity-card__mode-btn--active' : ''}"
-            @click=${() => this._switchColorMode(m.id, stateObj)}
-          >${m.label}</button>
-        `)}
+        <button
+          class="light-entity-card__mode-btn ${this._colorMode === 'rgb' ? 'light-entity-card__mode-btn--active' : ''}"
+          @click=${() => this._switchColorMode('rgb', stateObj)}
+        >RGB</button>
+        <button
+          class="light-entity-card__mode-btn ${this._colorMode === 'white' ? 'light-entity-card__mode-btn--active' : ''}"
+          @click=${() => this._switchColorMode('white', stateObj)}
+        >White</button>
+      </div>
+    `;
+  }
+
+  /**
+   * creates a small "Fixed colours" toggle to switch between color dots and color wheel
+   * @return {TemplateResult}
+   */
+  _createRgbViewSwitch() {
+    const isDots = this._rgbView === 'dots';
+    return html`
+      <div class="light-entity-card__rgb-view-switch">
+        <span class="light-entity-card__rgb-view-label">Fixed colours</span>
+        <ha-switch
+          .checked=${isDots}
+          @change=${() => { this._rgbView = isDots ? 'wheel' : 'dots'; }}
+          aria-label="Toggle fixed colours"
+        ></ha-switch>
       </div>
     `;
   }
@@ -483,6 +502,46 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
    * @param {LightEntity} stateObj
    * @return {TemplateResult}
    */
+  /**
+   * creates saturation slider for RGB mode
+   * @param {LightEntity} stateObj
+   * @return {TemplateResult}
+   */
+  _createSaturationSlider(stateObj) {
+    if (this.dontShowFeature('color', stateObj) && !this.config.force_features) return html``;
+    const hs = stateObj.attributes.hs_color || [0, 0];
+    const saturation = Math.round(hs[1]);
+
+    return html`
+      <div class="control light-entity-card-center">
+        <div class="icon-container" title="Saturation">
+          <ha-icon icon="hass:palette"></ha-icon>
+        </div>
+        <ha-slider
+          .value="${saturation}"
+          @change="${event => this._setSaturation(event, stateObj)}"
+          min="0"
+          max="100"
+          aria-label="Saturation"
+        ></ha-slider>
+        ${this.showPercent(saturation, 0, 100)}
+      </div>
+    `;
+  }
+
+  /**
+   * sets the saturation while keeping the current hue
+   * @param {CustomEvent} event
+   * @param {LightEntity} stateObj
+   */
+  _setSaturation(event, stateObj) {
+    const newSat = parseInt(event.target.value, 10);
+    if (isNaN(newSat)) return;
+    const hs = stateObj.attributes.hs_color || [0, 0];
+    if (Math.round(hs[1]) === newSat) return;
+    this.callEntityService({ hs_color: [hs[0], newSat] }, stateObj);
+  }
+
   createSpeedSlider(stateObj) {
     if (this.config.speed === false) return html``;
     if (this.dontShowFeature('speed', stateObj)) return html``;

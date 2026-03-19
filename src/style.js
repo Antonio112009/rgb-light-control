@@ -173,6 +173,19 @@ const style = css`
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
+  .light-entity-card__rgb-view-switch {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+  }
+
+  .light-entity-card__rgb-view-label {
+    font-size: 13px;
+    color: var(--secondary-text-color, #727272);
+  }
+
 `;
 
 export default style;
