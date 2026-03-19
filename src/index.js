@@ -184,33 +184,38 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const colorModes = this._colorModes(stateObj);
     const legacyFlags = stateObj.attributes.supported_features || 0;
 
-    const isSupported = (() => {
-      switch (featureName) {
-        case 'brightness':
-          return !!(FEATURE_BRIGHTNESS & legacyFlags)
-            || 'brightness' in stateObj.attributes
-            || colorModes.some(m => BRIGHTNESS_MODES.includes(m));
-        case 'colorTemp':
-          return !!(FEATURE_COLOR_TEMP & legacyFlags)
-            || colorModes.includes('color_temp');
-        case 'effectList':
-          return !!(FEATURE_EFFECT_LIST & legacyFlags)
-            || (stateObj.attributes.effect_list && stateObj.attributes.effect_list.length > 0);
-        case 'color':
-          return !!(FEATURE_COLOR & legacyFlags)
-            || colorModes.some(m => RGB_COLOR_MODES.includes(m));
-        case 'whiteValue':
-          return !!(FEATURE_WHITE_VALUE & legacyFlags)
-            || 'white_value' in stateObj.attributes
-            || colorModes.some(m => ['rgbw', 'rgbww'].includes(m));
-        case 'warmWhiteValue':
-          return colorModes.includes('rgbww');
-        default:
-          return false;
-      }
-    })();
+    let supported;
+    switch (featureName) {
+      case 'brightness':
+        supported = !!(FEATURE_BRIGHTNESS & legacyFlags)
+          || 'brightness' in stateObj.attributes
+          || colorModes.some(m => BRIGHTNESS_MODES.includes(m));
+        break;
+      case 'colorTemp':
+        supported = !!(FEATURE_COLOR_TEMP & legacyFlags)
+          || colorModes.includes('color_temp');
+        break;
+      case 'effectList':
+        supported = !!(FEATURE_EFFECT_LIST & legacyFlags)
+          || (stateObj.attributes.effect_list && stateObj.attributes.effect_list.length > 0);
+        break;
+      case 'color':
+        supported = !!(FEATURE_COLOR & legacyFlags)
+          || colorModes.some(m => RGB_COLOR_MODES.includes(m));
+        break;
+      case 'whiteValue':
+        supported = !!(FEATURE_WHITE_VALUE & legacyFlags)
+          || 'white_value' in stateObj.attributes
+          || colorModes.some(m => ['rgbw', 'rgbww'].includes(m));
+        break;
+      case 'warmWhiteValue':
+        supported = colorModes.includes('rgbww');
+        break;
+      default:
+        return false;
+    }
 
-    if (!isSupported) return false;
+    if (!supported) return false;
     if (!this.config.persist_features && !this.isEntityOn(stateObj)) return false;
     return true;
   }
@@ -277,8 +282,8 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         ${this._createSlider(stateObj, 'speed', this.config.speed_icon, 1, 255)}
         ${this._createSlider(stateObj, 'intensity', this.config.intensity_icon, 1, 255)}
         ${isWhite && !isFixed ? this._createColorTemperature(stateObj) : ''}
-        ${isWhite ? this._createWhiteValue(stateObj) : ''}
-        ${isWhite && !isFixed ? this._createWarmWhiteValue(stateObj) : ''}
+        ${isWhite ? this._createWhiteSlider(stateObj, 'white') : ''}
+        ${isWhite && !isFixed ? this._createWhiteSlider(stateObj, 'warmWhite') : ''}
         ${isRgb ? this._createSaturationSlider(stateObj) : ''}
       </div>
       ${isRgb ? this._createRgbViewSwitch() : ''}
@@ -416,9 +421,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
    */
   _createSlider(stateObj, attr, icon, min, max, percentType) {
     if (this.config[attr] === false) return html``;
-    // Map attribute names to feature names for shouldShowFeature
-    const featureMap = { brightness: 'brightness', speed: 'speed', intensity: 'intensity' };
-    if (!this.shouldShowFeature(featureMap[attr] || attr, stateObj)) return html``;
+    if (!this.shouldShowFeature(attr, stateObj)) return html``;
 
     const value = stateObj.attributes[attr] ?? 0;
     const title = attr.charAt(0).toUpperCase() + attr.slice(1);
@@ -443,7 +446,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   // ── Saturation Slider ──────────────────────────────────────────────────────
 
   _createSaturationSlider(stateObj) {
-    if (!this.shouldShowFeature('color', stateObj) && !this.config.force_features) return html``;
+    if (!this.shouldShowFeature('color', stateObj)) return html``;
     const hs = stateObj.attributes.hs_color || [0, 0];
     const saturation = Math.round(hs[1]);
 
@@ -584,44 +587,34 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     return 0;
   }
 
-  _createWhiteValue(stateObj) {
-    if (this.config.white_value === false) return html``;
-    if (!this.shouldShowFeature('whiteValue', stateObj)) return html``;
+  /**
+   * Creates a white channel slider (white or warm white).
+   * @param {Object} stateObj
+   * @param {'white'|'warmWhite'} channel
+   */
+  _createWhiteSlider(stateObj, channel) {
+    const isWarm = channel === 'warmWhite';
+    const configKey = isWarm ? 'warm_white_value' : 'white_value';
+    const featureName = isWarm ? 'warmWhiteValue' : 'whiteValue';
+    const icon = isWarm ? this.config.warm_white_icon : this.config.white_icon;
+    const title = isWarm ? 'Warm White' : 'White';
+    const index = isWarm ? 4 : 3;
 
-    const value = this._getWhiteValue(stateObj, 3);
+    if (this.config[configKey] === false) return html``;
+    if (!this.shouldShowFeature(featureName, stateObj)) return html``;
+
+    const value = this._getWhiteValue(stateObj, index);
 
     return html`
       <div class="control light-entity-card-center">
-        <div class="icon-container" title="White">
-          <ha-icon icon="hass:${this.config.white_icon}"></ha-icon>
+        <div class="icon-container" title="${title}">
+          <ha-icon icon="hass:${icon}"></ha-icon>
         </div>
         <ha-slider
           max="255"
           .value="${value}"
-          @change="${e => this._setWhiteValue(e, stateObj, 3)}"
-          aria-label="White value"
-        ></ha-slider>
-        ${this._showPercent(value, 0, SLIDER_PERCENT_MAX)}
-      </div>
-    `;
-  }
-
-  _createWarmWhiteValue(stateObj) {
-    if (this.config.warm_white_value === false) return html``;
-    if (!this.shouldShowFeature('warmWhiteValue', stateObj)) return html``;
-
-    const value = this._getWhiteValue(stateObj, 4);
-
-    return html`
-      <div class="control light-entity-card-center">
-        <div class="icon-container" title="Warm White">
-          <ha-icon icon="hass:${this.config.warm_white_icon}"></ha-icon>
-        </div>
-        <ha-slider
-          max="255"
-          .value="${value}"
-          @change="${e => this._setWhiteValue(e, stateObj, 4)}"
-          aria-label="Warm white value"
+          @change="${e => this._setWhiteValue(e, stateObj, index)}"
+          aria-label="${title} value"
         ></ha-slider>
         ${this._showPercent(value, 0, SLIDER_PERCENT_MAX)}
       </div>
@@ -668,7 +661,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
   _createColorPicker(stateObj) {
     if (this.config.color_picker === false) return html``;
-    if (!this.config.force_features && !this.shouldShowFeature('color', stateObj)) return html``;
+    if (!this.shouldShowFeature('color', stateObj)) return html``;
 
     const haHs = stateObj.attributes.hs_color || [0, 0];
     const pickerValue =

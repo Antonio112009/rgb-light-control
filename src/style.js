@@ -16,7 +16,6 @@ const style = css`
   }
 
   .ha-slider-full-width ha-slider {
-    width: 100%;
     flex: 1;
     min-width: 0;
   }
@@ -28,13 +27,11 @@ const style = css`
     align-items: center;
     margin-left: 8px;
     min-width: 40px;
-    text-align: right;
   }
 
   .light-entity-card__header {
     display: flex;
     justify-content: space-between;
-    @apply --paper-font-headline;
     line-height: 40px;
     color: var(--primary-text-color);
   }
@@ -44,12 +41,7 @@ const style = css`
   }
 
   .group .light-entity-card-sliders > div {
-    margin-top: 0px;
-  }
-
-  .light-entity-card__toggle {
-    display: flex;
-    cursor: pointer;
+    margin-top: 0;
   }
 
   .light-entity-card__color-picker {
@@ -64,7 +56,6 @@ const style = css`
     width: 100%;
   }
 
-  
   .light-entity-card-color_temp {
     background-image: var(--ha-slider-background, linear-gradient(to right, #a6d1ff, #ffb74d));
     border-radius: 4px;
@@ -90,10 +81,6 @@ const style = css`
     cursor: pointer;
   }
 
-  .hidden {
-    display: none;
-  }
-
   .icon-container {
     display: flex;
     justify-content: center;
@@ -105,7 +92,6 @@ const style = css`
     display: flex;
     justify-content: center;
     margin: 10px 0 4px;
-    gap: 0;
   }
 
   .light-entity-card__mode-btn {
@@ -187,7 +173,6 @@ const style = css`
     font-size: 13px;
     color: var(--secondary-text-color, #727272);
   }
-
 `;
 
 export default style;

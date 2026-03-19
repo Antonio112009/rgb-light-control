@@ -16,13 +16,12 @@ const style = css`
   .checkbox-options {
     display: flex;
   }
-  
-  mwc-select {
+
+  ha-select {
     width: 100%;
   }
 
   .checkbox-options ha-formfield,
-  .entities mwc-switch,
   .entities ha-form-string {
     padding-right: 2%;
     width: 48%;

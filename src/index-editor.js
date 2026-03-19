@@ -6,6 +6,31 @@ import buildElementDefinitions from './buildElementDefinitions';
 import globalElementLoader from './globalElementLoader';
 import { fireEvent } from './utils/fire-event';
 
+// Checkbox options grouped into rows for the editor UI
+const CHECKBOX_ROWS = [
+  [{ label: 'Shorten Cards', key: 'shorten_cards' }],
+  [{ label: 'Persist Features', key: 'persist_features' }, { label: 'Show Brightness', key: 'brightness' }],
+  [{ label: 'Show Color Temp', key: 'color_temp' }, { label: 'Color Temp in Kelvin', key: 'color_temp_in_kelvin' }],
+  [{ label: 'Show White Channel', key: 'white_value' }],
+  [{ label: 'Show Warm White', key: 'warm_white_value' }],
+  [{ label: 'Show Speed', key: 'speed' }, { label: 'Show Intensity', key: 'intensity' }],
+  [{ label: 'Show Color Picker', key: 'color_picker' }, { label: 'Show Effects List', key: 'effects_list' }],
+  [{ label: 'Full Width Sliders', key: 'full_width_sliders' }, { label: 'Show Slider Percent', key: 'show_slider_percent' }],
+  [{ label: 'Show Brightness %', key: 'show_brightness_percent' }, { label: 'Show Color Temp %', key: 'show_color_temp_percent' }],
+  [{ label: 'Hide Header', key: 'hide_header' }, { label: 'Show Header Icon', key: 'show_header_icon' }, { label: 'Child Card', key: 'child_card' }],
+  [{ label: 'Force Features', key: 'force_features' }],
+  [{ label: 'Consolidate Entities', key: 'consolidate_entities' }],
+  [{ label: 'Fixed White', key: 'fixed_white' }],
+];
+
+// Icon text fields for the editor
+const ICON_FIELDS = [
+  { name: 'brightness_icon', label: 'Brightness Icon' },
+  { name: 'white_icon', label: 'White Icon' },
+  { name: 'warm_white_icon', label: 'Warm White Icon' },
+  { name: 'temperature_icon', label: 'Temperature Icon' },
+];
+
 export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement) {
   static get elementDefinitions() {
     return buildElementDefinitions([
@@ -26,323 +51,116 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
   }
 
   setConfig(config) {
-    this._config = {
-      ...defaultConfig,
-      ...config,
-    };
-  }
-
-  get entityOptions() {
-    const allEntities = Object.keys(this.hass.states).filter(eid => ['switch', 'light', 'group'].includes(eid.split('.')[0]));
-
-    allEntities.sort();
-    return allEntities;
+    this._config = { ...defaultConfig, ...config };
   }
 
   firstUpdated() {
     this._firstRendered = true;
   }
 
-  render() {
-    if (!this.hass || !this._config) {
-      return html``;
-    }
+  get entityOptions() {
+    return Object.keys(this.hass.states)
+      .filter(eid => ['switch', 'light', 'group'].includes(eid.split('.')[0]))
+      .sort();
+  }
 
-    // get header name
+  render() {
+    if (!this.hass || !this._config) return html``;
+
     let { header } = this._config;
     if (!header && this._config.entity) {
-      let name = this._config.entity.split('.')[1] || '';
-      if (name) {
-        name = name.charAt(0).toUpperCase() + name.slice(1);
-        header = name;
-      }
+      const name = this._config.entity.split('.')[1] || '';
+      if (name) header = name.charAt(0).toUpperCase() + name.slice(1);
     }
 
-     
-     
-    const options = this.entityOptions.map(entity => html`<mwc-list-item value="${entity}" ?selected=${entity === this._config.entity}>${entity}</mwc-list-item>`);
+    const entityOptions = this.entityOptions.map(entity =>
+      html`<mwc-list-item value="${entity}" ?selected=${entity === this._config.entity}>${entity}</mwc-list-item>`,
+    );
 
     return html`
       <div class="card-config">
-
-        <div class='overall-config'>
+        <div class="overall-config">
           <ha-form-string
             .schema=${{ name: 'header', type: 'string' }}
             label="Header"
             .data="${header}"
             .configValue="${'header'}"
-            @changed="${this.configChanged}"
+            @changed="${this._onConfigChanged}"
           ></ha-form-string>
         </div>
 
-        <div class='entities'>
+        <div class="entities">
           <ha-select
             label="Entity"
-            @selected="${this.configChanged}" 
-            @closed="${e => e.stopPropagation()}" 
+            @selected="${this._onConfigChanged}"
+            @closed="${e => e.stopPropagation()}"
             .configValue="${'entity'}"
           >
-            ${options}
+            ${entityOptions}
           </ha-select>
-          <ha-form-string
-            .schema=${{ name: 'brightness_icon', type: 'string' }}
-            label="Brightness Icon"
-            .data="${this._config.brightness_icon}"
-            .configValue="${'brightness_icon'}"
-            @changed="${this.configChanged}"
-          ></ha-form-string>
         </div>
 
-        <div class='entities'>
-         <ha-form-string
-           .schema=${{ name: 'white_icon', type: 'string' }}
-           label="White Icon"
-            .data="${this._config.white_icon}"
-            .configValue="${'white_icon'}"
-            @changed="${this.configChanged}"
-          ></ha-form-string>
-          <ha-form-string
-            .schema=${{ name: 'warm_white_icon', type: 'string' }}
-            label="Warm White Icon"
-            .data="${this._config.warm_white_icon}"
-            .configValue="${'warm_white_icon'}"
-            @changed="${this.configChanged}"
-          ></ha-form-string>
+        <div class="entities">
+          ${this._renderIconFields(ICON_FIELDS.slice(0, 2))}
         </div>
-
-        <div class='entities'>
-          <ha-form-string
-            .schema=${{ name: 'temperature_icon', type: 'string' }}
-            label="Temperature Icon"
-            .data="${this._config.temperature_icon}"
-            .configValue="${'temperature_icon'}"
-            @changed="${this.configChanged}"
-          ></ha-form-string>
+        <div class="entities">
+          ${this._renderIconFields(ICON_FIELDS.slice(2))}
           <ha-form-string
             .schema=${{ name: 'transition', type: 'string' }}
             label="Transition (seconds)"
             .data="${String(this._config.transition || '')}"
             .configValue="${'transition'}"
-            @changed="${this.configChanged}"
+            @changed="${this._onConfigChanged}"
           ></ha-form-string>
         </div>
 
-        <div class='overall-config'>
-          <div class='checkbox-options'>
-            <ha-formfield label="Shorten Cards">
-              <ha-checkbox
-                @change="${this.checkboxConfigChanged}"
-                .checked=${this._config.shorten_cards}
-                .value="${'shorten_cards'}"
-              ></ha-checkbox>
-            </ha-formfield>
+        <div class="overall-config">
+          ${CHECKBOX_ROWS.map(row => html`
+            <div class="checkbox-options">
+              ${row.map(({ label, key }) => html`
+                <ha-formfield label="${label}">
+                  <ha-checkbox
+                    @change="${this._onCheckboxChanged}"
+                    .checked=${this._config[key]}
+                    .value="${key}"
+                  ></ha-checkbox>
+                </ha-formfield>
+              `)}
             </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Persist Features">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.persist_features}
-                  .value="${'persist_features'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Show Brightness">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.brightness}
-                  .value="${'brightness'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Show Color Temp">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.color_temp}
-                  .value="${'color_temp'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Color Temp in Kelvin">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.color_temp_in_kelvin}
-                  .value="${'color_temp_in_kelvin'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Show White Channel">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.white_value}
-                  .value="${'white_value'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Show Warm White">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.warm_white_value}
-                  .value="${'warm_white_value'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Show Speed">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.speed}
-                  .value="${'speed'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Show Intensity">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.intensity}
-                  .value="${'intensity'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Show Color Picker">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.color_picker}
-                  .value="${'color_picker'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Show Effects List">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.effects_list}
-                  .value="${'effects_list'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Full Width Sliders">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.full_width_sliders}
-                  .value="${'full_width_sliders'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Show Slider Percent">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.show_slider_percent}
-                  .value="${'show_slider_percent'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Show Brightness %">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.show_brightness_percent}
-                  .value="${'show_brightness_percent'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Show Color Temp %">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.show_color_temp_percent}
-                  .value="${'show_color_temp_percent'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Hide Header">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.hide_header}
-                  .value="${'hide_header'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Show Header Icon">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.show_header_icon}
-                  .value="${'show_header_icon'}"
-                ></ha-checkbox>
-              </ha-formfield>
-              <ha-formfield label="Child Card">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.child_card}
-                  .value="${'child_card'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-              <ha-formfield label="Force Features">
-                <ha-checkbox
-                  @change="${this.checkboxConfigChanged}"
-                  .checked=${this._config.force_features}
-                  .value="${'force_features'}"
-                ></ha-checkbox>
-              </ha-formfield>
-            </div>
-
-            <div class='checkbox-options'>
-            <ha-formfield label="Consolidate Entities">
-              <ha-checkbox
-                @change="${this.checkboxConfigChanged}"
-                .checked=${this._config.consolidate_entities}
-                .value="${'consolidate_entities'}"
-              ></ha-checkbox>
-            </ha-formfield>
-          </div>
-          </div>
-
-          <div class='checkbox-options'>
-            <ha-formfield label="Fixed White">
-              <ha-checkbox
-                @change="${this.checkboxConfigChanged}"
-                .checked=${this._config.fixed_white}
-                .value="${'fixed_white'}"
-              ></ha-checkbox>
-            </ha-formfield>
-          </div>
+          `)}
+        </div>
       </div>
     `;
   }
 
-  configChanged(ev) {
+  _renderIconFields(fields) {
+    return fields.map(({ name, label }) => html`
+      <ha-form-string
+        .schema=${{ name, type: 'string' }}
+        label="${label}"
+        .data="${this._config[name]}"
+        .configValue="${name}"
+        @changed="${this._onConfigChanged}"
+      ></ha-form-string>
+    `);
+  }
+
+  _onConfigChanged(ev) {
     if (!this._config || !this.hass || !this._firstRendered) return;
-    const {
-      target: { configValue, value },
-      detail: { value: checkedValue },
-    } = ev;
+    const { target: { configValue, value }, detail } = ev;
+    const newValue = (detail && detail.value !== undefined && detail.value !== null)
+      ? detail.value
+      : value;
 
-    if (checkedValue !== undefined && checkedValue !== null) {
-      this._config = { ...this._config, [configValue]: checkedValue };
-    } else {
-      this._config = { ...this._config, [configValue]: value };
-    }
-
+    this._config = { ...this._config, [configValue]: newValue };
     fireEvent(this, 'config-changed', { config: this._config });
   }
 
-  checkboxConfigChanged(ev) {
+  _onCheckboxChanged(ev) {
     if (!this._config || !this.hass || !this._firstRendered) return;
-    const {
-      target: { value, checked },
-    } = ev;
+    const { target: { value, checked } } = ev;
 
     this._config = { ...this._config, [value]: checked };
-
     fireEvent(this, 'config-changed', { config: this._config });
   }
-
 }
