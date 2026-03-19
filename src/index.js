@@ -263,6 +263,18 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 
   /**
+   * detects whether the entity is currently in RGB or White mode
+   * based on HA's color_mode attribute
+   * @param {LightEntity} stateObj
+   * @return {string} 'rgb' or 'white'
+   */
+  _detectColorMode(stateObj) {
+    const currentMode = stateObj.attributes.color_mode;
+    if (['color_temp', 'white'].includes(currentMode)) return 'white';
+    return 'rgb';
+  }
+
+  /**
    * checks if entity supports RGB-type color modes
    * @param {LightEntity} stateObj
    * @return {boolean}
