@@ -284,11 +284,19 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (setting === 'fixed') return true;
     if (setting === 'range') return false;
 
-    // Auto-detect: check if entity supports color_temp or rgbww (= range)
-    // If only 'white' or 'rgbw' without color_temp/rgbww → fixed
+    // Auto-detect from supported_color_modes and actual kelvin range
     const modes = stateObj.attributes.supported_color_modes || [];
-    const hasRange = modes.some(m => ['color_temp', 'rgbww'].includes(m));
-    return !hasRange;
+    const hasColorTemp = modes.includes('color_temp');
+    const hasRgbww = modes.includes('rgbww');
+
+    if (!hasColorTemp && !hasRgbww) return true; // no range capability → fixed
+
+    // Even if color_temp is supported, check if the actual range is meaningful
+    const minK = stateObj.attributes.min_color_temp_kelvin;
+    const maxK = stateObj.attributes.max_color_temp_kelvin;
+    if (hasColorTemp && minK && maxK && Math.abs(maxK - minK) < 100) return true; // negligible range → fixed
+
+    return false;
   }
 
   /**
