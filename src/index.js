@@ -85,19 +85,39 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   async firstUpdated() {
     this._firstUpdate = true;
 
-    // ha-hs-color-picker is lazy-loaded by HA. Wait for it to be defined
-    // and re-render once available.
+    // ha-hs-color-picker is lazy-loaded by HA (only when a light's more-info
+    // dialog is opened). Force-load it by briefly opening a hidden dialog.
     const needsColorPicker =
       this.config.color_picker !== false && this.config.entity.startsWith('light.');
 
     if (needsColorPicker && !customElements.get('ha-hs-color-picker')) {
-      try {
-        await Promise.race([
-          customElements.whenDefined('ha-hs-color-picker'),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-        ]);
-      } catch {
-        // Timed out  — element will appear when user opens a more-info dialog
+      const ha = document.querySelector('home-assistant');
+      if (ha) {
+        // Hide the dialog to prevent a visible flash
+        const hideStyle = document.createElement('style');
+        hideStyle.textContent = 'ha-more-info-dialog { display: none !important; }';
+        ha.shadowRoot.appendChild(hideStyle);
+
+        // Open then immediately close the more-info dialog to trigger lazy loading
+        ha.dispatchEvent(new CustomEvent('hass-more-info', {
+          detail: { entityId: this.config.entity },
+          bubbles: true, composed: true,
+        }));
+
+        try {
+          await Promise.race([
+            customElements.whenDefined('ha-hs-color-picker'),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+          ]);
+        } catch {
+          // Timed out — color picker will appear when user opens a dialog manually
+        } finally {
+          ha.dispatchEvent(new CustomEvent('hass-more-info', {
+            detail: { entityId: '' },
+            bubbles: true, composed: true,
+          }));
+          hideStyle.remove();
+        }
       }
       this.requestUpdate();
     }
