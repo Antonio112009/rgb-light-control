@@ -17,6 +17,18 @@ const SLIDER_PERCENT_MAX = 254; // max - 1 for percentage calculation
 const MIRED_KELVIN_FACTOR = 1000000;
 const DEFAULT_RGB = [255, 255, 255];
 
+// Preset colors for the "Colors" mode (hue, saturation pairs)
+const PRESET_COLORS = [
+  { name: 'Red', hs: [0, 100], color: '#ff0000' },
+  { name: 'Orange', hs: [30, 100], color: '#ff8000' },
+  { name: 'Yellow', hs: [60, 100], color: '#ffff00' },
+  { name: 'Green', hs: [120, 100], color: '#00ff00' },
+  { name: 'Cyan', hs: [180, 100], color: '#00ffff' },
+  { name: 'Blue', hs: [240, 100], color: '#0000ff' },
+  { name: 'Purple', hs: [270, 100], color: '#8000ff' },
+  { name: 'Pink', hs: [320, 100], color: '#ff00aa' },
+];
+
 const editorName = 'rgb-light-controller-editor';
 customElements.define(editorName, LightEntityCardEditor);
 
@@ -238,11 +250,12 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (this._colorMode === null && showModeToggle) {
       this._colorMode = this._detectColorMode(stateObj);
     } else if (this._colorMode === null) {
-      this._colorMode = supportsRgb ? 'rgb' : 'white';
+      this._colorMode = supportsRgb ? 'colors' : 'white';
     }
 
-    const isRgbMode = !showModeToggle || this._colorMode === 'rgb';
-    const isWhiteMode = !showModeToggle || this._colorMode === 'white';
+    const isColorsMode = this._colorMode === 'colors';
+    const isRgbMode = !showModeToggle ? true : this._colorMode === 'rgb';
+    const isWhiteMode = !showModeToggle ? false : this._colorMode === 'white';
 
     const isFixedWhite = this._isFixedWhite();
 
@@ -257,6 +270,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         ${isWhiteMode ? this.createWhiteValue(stateObj) : ''}
         ${isWhiteMode && !isFixedWhite ? this.createWarmWhiteValue(stateObj) : ''}
       </div>
+      ${isColorsMode ? this._createColorDots(stateObj) : ''}
       ${isRgbMode ? this.createColorPicker(stateObj) : ''}
       ${this.createEffectList(stateObj)}
     `;
@@ -271,7 +285,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _detectColorMode(stateObj) {
     const currentMode = stateObj.attributes.color_mode;
     if (['color_temp', 'white'].includes(currentMode)) return 'white';
-    return 'rgb';
+    return 'colors'; // default to simple color dots view
   }
 
   /**
@@ -313,6 +327,13 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
     if (!this.isEntityOn(stateObj)) return;
 
+    // "colors" mode sends HS just like "rgb"
+    if (mode === 'colors' || mode === 'rgb') {
+      const hs = stateObj.attributes.hs_color || [0, 100];
+      this.callEntityService({ hs_color: hs }, stateObj);
+      return;
+    }
+
     if (mode === 'white') {
       if (this._isFixedWhite()) {
         // Fixed white — just set white value (brightness handles the rest)
@@ -337,10 +358,6 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           }
         }
       }
-    } else {
-      // Switch to HS mode — send current or default HS color
-      const hs = stateObj.attributes.hs_color || [0, 100];
-      this.callEntityService({ hs_color: hs }, stateObj);
     }
   }
 
@@ -349,18 +366,56 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
    * @return {TemplateResult}
    */
   _createModeToggle(stateObj) {
+    const modes = [
+      { id: 'colors', label: 'Colors' },
+      { id: 'rgb', label: 'RGB' },
+      { id: 'white', label: 'White' },
+    ];
     return html`
       <div class="light-entity-card__mode-toggle">
-        <button
-          class="light-entity-card__mode-btn ${this._colorMode === 'rgb' ? 'light-entity-card__mode-btn--active' : ''}"
-          @click=${() => this._switchColorMode('rgb', stateObj)}
-        >RGB</button>
-        <button
-          class="light-entity-card__mode-btn ${this._colorMode === 'white' ? 'light-entity-card__mode-btn--active' : ''}"
-          @click=${() => this._switchColorMode('white', stateObj)}
-        >White</button>
+        ${modes.map(m => html`
+          <button
+            class="light-entity-card__mode-btn ${this._colorMode === m.id ? 'light-entity-card__mode-btn--active' : ''}"
+            @click=${() => this._switchColorMode(m.id, stateObj)}
+          >${m.label}</button>
+        `)}
       </div>
     `;
+  }
+
+  /**
+   * creates the color dots circle for "Colors" mode
+   * @param {LightEntity} stateObj
+   * @return {TemplateResult}
+   */
+  _createColorDots(stateObj) {
+    const currentHs = stateObj.attributes.hs_color || [0, 0];
+    const colors = this.config.preset_colors || PRESET_COLORS;
+
+    return html`
+      <div class="light-entity-card__color-dots">
+        ${colors.map(c => {
+          const isSelected = Math.abs(currentHs[0] - c.hs[0]) < 15 && currentHs[1] > 50;
+          return html`
+            <button
+              class="light-entity-card__color-dot ${isSelected ? 'light-entity-card__color-dot--selected' : ''}"
+              style="background: ${c.color};"
+              title="${c.name}"
+              @click=${() => this._selectPresetColor(c.hs, stateObj)}
+            ></button>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  /**
+   * applies a preset color to the entity
+   * @param {Array} hs - [hue, saturation]
+   * @param {LightEntity} stateObj
+   */
+  _selectPresetColor(hs, stateObj) {
+    this.callEntityService({ hs_color: hs }, stateObj);
   }
 
   /**

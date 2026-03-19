@@ -124,6 +124,9 @@ const style = css`
 
   .light-entity-card__mode-btn:last-child {
     border-radius: 0 16px 16px 0;
+  }
+
+  .light-entity-card__mode-btn + .light-entity-card__mode-btn {
     border-left: none;
   }
 
@@ -135,6 +138,39 @@ const style = css`
 
   .light-entity-card__mode-btn:hover:not(.light-entity-card__mode-btn--active) {
     background: rgba(0, 0, 0, 0.05);
+  }
+
+  .light-entity-card__color-dots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 14px 8px;
+    padding: 4px;
+  }
+
+  .light-entity-card__color-dot {
+    width: 38px;
+    min-width: 28px;
+    height: 38px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    outline: none;
+    padding: 0;
+  }
+
+  .light-entity-card__color-dot:hover {
+    transform: scale(1.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .light-entity-card__color-dot--selected {
+    border-color: white;
+    transform: scale(1.2);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
 `;
