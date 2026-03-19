@@ -1,0 +1,44 @@
+{
+  "name": "light-entity-card",
+  "version": "6.3.0",
+  "description": "A light-entity card for Home Assistant Lovelace UI",
+  "keywords": [
+    "home-assistant",
+    "homeassistant",
+    "hass",
+    "automation",
+    "lovelace",
+    "custom-cards",
+    "light-entity"
+  ],
+  "repository": "git@github.com:Antonio112009/rgb-light-control.git",
+  "author": "Antonio112009",
+  "license": "MIT",
+  "dependencies": {
+    "@lit-labs/scoped-registry-mixin": "^1.0.4",
+    "@material/mwc-icon": "^0.27.0",
+    "@material/mwc-list": "^0.27.0",
+    "@material/mwc-menu": "^0.27.0",
+    "@material/mwc-notched-outline": "^0.27.0",
+    "@material/mwc-select": "^0.27.0",
+    "core-js": "^3.49.0",
+    "lit": "^3.3.2",
+    "lit-element": "^4.2.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.2",
+    "@eslint/js": "^10.0.1",
+    "babel-loader": "^10.1.1",
+    "eslint": "^10.0.3",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2",
+    "webpack-merge": "^6.0.1"
+  },
+  "scripts": {
+    "lint": "eslint  --fix ./src",
+    "start": "webpack --watch --config webpack/config.dev.js",
+    "build": "webpack --config webpack/config.prod.js"
+  }
+}
