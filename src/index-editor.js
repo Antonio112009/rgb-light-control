@@ -305,16 +305,16 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
           </div>
           </div>
 
-          <div class='entities'>
-            <ha-select
-              label="White Mode"
+          <div class='checkbox-options' style="flex-direction: column; gap: 4px; margin-top: 10px;">
+            <label style="font-size: 12px; color: var(--secondary-text-color, #727272);">White Mode</label>
+            <select
               @change="${this._whiteModeChanged}"
-              @closed="${e => e.stopPropagation()}"
+              style="padding: 10px; border-radius: 4px; border: 1px solid var(--divider-color, #444); background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color, #fff); font-size: 14px; width: 100%; cursor: pointer; outline: none;"
             >
-              <mwc-list-item value="auto" ?selected=${(this._config.white_mode || 'auto') === 'auto'}>Auto (detect from entity)</mwc-list-item>
-              <mwc-list-item value="range" ?selected=${this._config.white_mode === 'range'}>Range (warm/cool slider)</mwc-list-item>
-              <mwc-list-item value="fixed" ?selected=${this._config.white_mode === 'fixed'}>Fixed (plain white)</mwc-list-item>
-            </ha-select>
+              <option value="auto" ?selected=${(this._config.white_mode || 'auto') === 'auto'}>Auto (detect from entity)</option>
+              <option value="range" ?selected=${this._config.white_mode === 'range'}>Range (warm/cool slider)</option>
+              <option value="fixed" ?selected=${this._config.white_mode === 'fixed'}>Fixed (plain white)</option>
+            </select>
           </div>
       </div>
     `;
@@ -349,9 +349,7 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
 
   _whiteModeChanged(ev) {
     if (!this._config || !this.hass || !this._firstRendered) return;
-    const value = ev.target.value;
-    if (!value || value === (this._config.white_mode || 'auto')) return;
-    this._config = { ...this._config, white_mode: value };
+    this._config = { ...this._config, white_mode: ev.target.value };
     fireEvent(this, 'config-changed', { config: this._config });
   }
 }
