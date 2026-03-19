@@ -52,13 +52,18 @@ const style = css`
 
   .light-entity-card__color-picker {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     margin-top: 10px;
   }
 
   .light-entity-card__color-picker ha-hs-color-picker {
     max-width: 300px;
     width: 100%;
+  }
+
+  .light-entity-card__color-picker-toggle {
+    margin-top: 12px;
   }
   
   .light-entity-card-color_temp {

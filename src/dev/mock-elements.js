@@ -31,37 +31,69 @@ class MockHaCard extends HTMLElement {
 safeDefine('ha-card', MockHaCard);
 
 // -- ha-switch --
+// Lit may set .checked as a data property before our defineProperty runs,
+// so we check for and recover any pre-set value in connectedCallback.
 class MockHaSwitch extends HTMLElement {
   constructor() {
     super();
-    this.__checked = false;
+    this._initAccessor();
+    this.attachShadow({ mode: 'open' });
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: inline-flex; align-items: center; }
+        .track {
+          width: 36px; height: 20px; border-radius: 10px; cursor: pointer;
+          background: #bdbdbd; position: relative; transition: background 0.2s;
+        }
+        .track.on { background: var(--primary-color, #03a9f4); }
+        .thumb {
+          width: 16px; height: 16px; border-radius: 50%; background: white;
+          position: absolute; top: 2px; left: 2px; transition: left 0.2s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .track.on .thumb { left: 18px; }
+      </style>
+      <div class="track"><div class="thumb"></div></div>
+    `;
+    this._track = this.shadowRoot.querySelector('.track');
+    this._track.addEventListener('click', () => {
+      this.__checked = !this.__checked;
+      this._syncVisual();
+      this.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  _initAccessor() {
+    // Recover any value Lit may have set as a data property before us
+    const preSet = Object.getOwnPropertyDescriptor(this, 'checked');
+    const hadValue = preSet && 'value' in preSet;
+    const preValue = hadValue ? preSet.value : false;
+    if (hadValue) delete this.checked; // remove data prop so defineProperty works
+
+    this.__checked = Boolean(preValue);
     Object.defineProperty(this, 'checked', {
       get: () => this.__checked,
       set: (v) => {
         this.__checked = Boolean(v);
-        if (this._input) this._input.checked = this.__checked;
+        this._syncVisual();
       },
       enumerable: true,
       configurable: true,
     });
   }
+  _syncVisual() {
+    if (!this._track) return;
+    this._track.className = this.__checked ? 'track on' : 'track';
+  }
   connectedCallback() {
-    if (!this.shadowRoot) {
-      this.attachShadow({ mode: 'open' });
-      this.shadowRoot.innerHTML = `
-        <style>
-          :host { display: inline-flex; align-items: center; }
-          input { width: 40px; height: 20px; cursor: pointer; }
-        </style>
-        <input type="checkbox">
-      `;
-      this._input = this.shadowRoot.querySelector('input');
-      this._input.addEventListener('change', () => {
-        this.__checked = this._input.checked;
-        this.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+    // Also recover here in case property was set between construction and connection
+    const desc = Object.getOwnPropertyDescriptor(this, 'checked');
+    if (desc && 'value' in desc) {
+      const val = desc.value;
+      delete this.checked;
+      this._initAccessor();
+      this.__checked = Boolean(val);
     }
-    if (this._input) this._input.checked = this.__checked;
+    this._syncVisual();
   }
 }
 safeDefine('ha-switch', MockHaSwitch);
@@ -90,27 +122,26 @@ class MockHaSlider extends HTMLElement {
 
   constructor() {
     super();
-    this.__value = undefined;
-    this.__min = undefined;
-    this.__max = undefined;
+    this._recoverProps(['value', 'min', 'max']);
+  }
 
-    Object.defineProperty(this, 'value', {
-      get: () => this._input ? this._input.value : (this.__value ?? '0'),
-      set: (v) => { this.__value = v; this._syncInput(); },
-      enumerable: true,
-      configurable: true,
-    });
-    Object.defineProperty(this, 'min', {
-      get: () => this.__min ?? this.getAttribute('min') ?? '0',
-      set: (v) => { this.__min = v; this._syncInput(); },
-      enumerable: true,
-      configurable: true,
-    });
-    Object.defineProperty(this, 'max', {
-      get: () => this.__max ?? this.getAttribute('max') ?? '255',
-      set: (v) => { this.__max = v; this._syncInput(); },
-      enumerable: true,
-      configurable: true,
+  _recoverProps(names) {
+    names.forEach(name => {
+      const privateName = '__' + name;
+      const desc = Object.getOwnPropertyDescriptor(this, name);
+      const preValue = (desc && 'value' in desc) ? desc.value : undefined;
+      if (desc && 'value' in desc) delete this[name];
+      if (this[privateName] === undefined) this[privateName] = preValue;
+      Object.defineProperty(this, name, {
+        get: () => {
+          if (name === 'value') return this._input ? this._input.value : (this.__value ?? '0');
+          if (name === 'min') return this.__min ?? this.getAttribute('min') ?? '0';
+          if (name === 'max') return this.__max ?? this.getAttribute('max') ?? '255';
+        },
+        set: (v) => { this[privateName] = v; this._syncInput(); },
+        enumerable: true,
+        configurable: true,
+      });
     });
   }
 
@@ -122,6 +153,8 @@ class MockHaSlider extends HTMLElement {
   }
 
   connectedCallback() {
+    // Recover data properties Lit may have set before our accessors
+    this._recoverProps(['value', 'min', 'max']);
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
       this.shadowRoot.innerHTML = `
@@ -152,7 +185,13 @@ safeDefine('ha-slider', MockHaSlider);
 class MockHsColorPicker extends HTMLElement {
   constructor() {
     super();
-    this.__value = [0, 0];
+    this._recoverValue();
+  }
+  _recoverValue() {
+    const desc = Object.getOwnPropertyDescriptor(this, 'value');
+    const preValue = (desc && 'value' in desc) ? desc.value : undefined;
+    if (desc && 'value' in desc) delete this.value;
+    if (this.__value === undefined) this.__value = preValue || [0, 0];
     Object.defineProperty(this, 'value', {
       get: () => this.__value,
       set: (v) => { this.__value = v || [0, 0]; this._render(); },
@@ -161,10 +200,11 @@ class MockHsColorPicker extends HTMLElement {
     });
   }
   connectedCallback() {
+    this._recoverValue();
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
-      this._render();
     }
+    this._render();
   }
   _render() {
     const [h, s] = this.__value || [0, 0];
@@ -250,7 +290,13 @@ safeDefine('mwc-list-item', MockMwcListItem);
 class MockStateBadge extends HTMLElement {
   constructor() {
     super();
-    this.__stateObj = null;
+    this._recoverStateObj();
+  }
+  _recoverStateObj() {
+    const desc = Object.getOwnPropertyDescriptor(this, 'stateObj');
+    const preValue = (desc && 'value' in desc) ? desc.value : undefined;
+    if (desc && 'value' in desc) delete this.stateObj;
+    if (this.__stateObj === undefined) this.__stateObj = preValue || null;
     Object.defineProperty(this, 'stateObj', {
       get: () => this.__stateObj,
       set: (v) => { this.__stateObj = v; this._render(); },
@@ -259,6 +305,7 @@ class MockStateBadge extends HTMLElement {
     });
   }
   connectedCallback() {
+    this._recoverStateObj();
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
       this._render();

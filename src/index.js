@@ -638,7 +638,14 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
    */
   createColorPicker(stateObj) {
     if (this.config.color_picker === false) return html``;
-    if (this.dontShowFeature('color', stateObj)) return html``;
+    // Always show color picker if entity supports color, even when off
+    if (this.config.force_features) { /* show */ }
+    else {
+      const colorModes = stateObj.attributes.supported_color_modes || [];
+      const featureSupported = (LightEntityCard.featureNames.color & stateObj.attributes.supported_features)
+        || colorModes.some(mode => ['hs', 'rgb', 'rgbw', 'rgbww', 'xy'].includes(mode));
+      if (!featureSupported) return html``;
+    }
 
     // ha-hs-color-picker uses saturation 0-1, HA uses 0-100
     const haHs = stateObj.attributes.hs_color || [0, 0];
@@ -652,6 +659,13 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           @cursor-moved=${(e) => { this._colorPickerValues = { ...this._colorPickerValues, [stateObj.entity_id]: e.detail.value }; }}
           @value-changed=${(e) => this._onColorPickerChanged(e.detail.value, stateObj)}
         ></ha-hs-color-picker>
+        <div class="light-entity-card__color-picker-toggle">
+          <ha-switch
+            .checked=${this.isEntityOn(stateObj)}
+            @change=${e => this.setToggle(e, stateObj)}
+            aria-label="Toggle light"
+          ></ha-switch>
+        </div>
       </div>
     `;
   }

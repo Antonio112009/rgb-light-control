@@ -80,6 +80,90 @@
     }
 
     .status-bar.off { background: #fce4ec; }
+
+    /* Lamp visualization */
+    .lamp-card {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 28px 20px 16px;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      overflow: hidden;
+      position: relative;
+    }
+    .lamp-bulb-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Outer glow */
+    .lamp-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--lamp-color-alpha, rgba(253,216,53,0.25)) 0%, transparent 65%);
+      transform: scale(var(--glow-scale, 1));
+      transition: all 0.35s ease;
+      pointer-events: none;
+    }
+    /* The bulb bubble */
+    .lamp-bulb {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%,
+        var(--lamp-highlight, rgba(255,255,255,0.9)) 0%,
+        var(--lamp-color, #fdd835) 40%,
+        var(--lamp-color-dim, #f9a825) 100%);
+      box-shadow:
+        0 0 var(--lamp-shadow-size, 30px) var(--lamp-color-alpha, rgba(253,216,53,0.4)),
+        inset 0 -4px 12px rgba(0,0,0,0.1);
+      transition: all 0.35s ease;
+      position: relative;
+      z-index: 2;
+    }
+    .lamp-bulb.off {
+      background: radial-gradient(circle at 35% 35%, #757575 0%, #505050 40%, #3a3a3a 100%);
+      box-shadow: inset 0 -4px 12px rgba(0,0,0,0.2);
+    }
+    /* Screw base */
+    .lamp-screw {
+      width: 32px;
+      margin: -4px auto 0;
+      position: relative;
+      z-index: 3;
+    }
+    .lamp-screw-ring {
+      height: 6px;
+      background: linear-gradient(to right, #888, #ccc 30%, #aaa 70%, #888);
+      border-radius: 1px;
+      margin-bottom: 1px;
+    }
+    .lamp-screw-ring:nth-child(2) { width: 28px; margin-left: auto; margin-right: auto; }
+    .lamp-screw-ring:nth-child(3) { width: 24px; margin-left: auto; margin-right: auto; border-radius: 0 0 4px 4px; }
+    /* Surface reflection */
+    .lamp-surface {
+      width: 160px;
+      height: 8px;
+      margin-top: 8px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, var(--lamp-color-alpha, rgba(253,216,53,0.15)) 0%, transparent 70%);
+      transition: all 0.35s ease;
+    }
+    .lamp-label {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #8888aa;
+      font-family: monospace;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
   </style>
 </head>
 <body>
@@ -88,6 +172,19 @@
 <div class="layout">
   <div class="card-preview">
     <div id="card-container"></div>
+    <div class="lamp-card" id="lamp-card">
+      <div class="lamp-bulb-wrap">
+        <div class="lamp-glow" id="lamp-glow"></div>
+        <div class="lamp-bulb" id="lamp-bulb"></div>
+      </div>
+      <div class="lamp-screw">
+        <div class="lamp-screw-ring"></div>
+        <div class="lamp-screw-ring"></div>
+        <div class="lamp-screw-ring"></div>
+      </div>
+      <div class="lamp-surface" id="lamp-surface"></div>
+      <div class="lamp-label" id="lamp-label">on &middot; 180/255 &middot; 4000K</div>
+    </div>
   </div>
 
   <div class="controls-panel">
@@ -227,6 +324,7 @@
       <input type="range" id="cfg-transition" min="0" max="10" step="0.5" value="0">
       <span id="cfg-transition-val">0</span>
     </label>
+
   </div>
 </div>
 
@@ -373,6 +471,73 @@
   function updateCard() {
     if (!cardRef) return;
     cardRef.hass = buildHass();
+    updateLamp();
+  }
+
+  function updateLamp() {
+    const card = document.getElementById('lamp-card');
+    const bulb = document.getElementById('lamp-bulb');
+    const label = document.getElementById('lamp-label');
+    if (!bulb) return;
+
+    const isOn = currentState.state === 'on';
+    const brightness = currentState.brightness;
+    const [hue, sat] = currentState.hs_color;
+    const kelvin = currentState.color_temp_kelvin;
+    const pct = Math.round((brightness / 255) * 100);
+
+    if (!isOn) {
+      bulb.className = 'lamp-bulb off';
+      card.style.setProperty('--lamp-color-alpha', 'transparent');
+      card.style.setProperty('--glow-scale', '0');
+      card.style.setProperty('--lamp-shadow-size', '0px');
+      label.textContent = 'off';
+      return;
+    }
+
+    bulb.className = 'lamp-bulb';
+
+    // Compute color from HS; fall back to color temp if low saturation
+    let r, g, b;
+    if (sat < 10) {
+      const t = Math.max(0, Math.min(1, (kelvin - 2000) / 4500));
+      r = Math.round(255 - t * 50);
+      g = Math.round(200 + t * 40);
+      b = Math.round(150 + t * 105);
+    } else {
+      const h = hue / 360, s = sat / 100, l = 0.5;
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = Math.round(hue2rgb(p, q, h + 1/3) * 255);
+      g = Math.round(hue2rgb(p, q, h) * 255);
+      b = Math.round(hue2rgb(p, q, h - 1/3) * 255);
+    }
+
+    // Perceptual brightness curve (gamma ~2.2) for realistic light appearance
+    const briLinear = brightness / 255;
+    const bri = Math.pow(briLinear, 0.45); // inverse gamma for perceived brightness
+    const dimFactor = Math.pow(briLinear, 1.5); // stronger falloff for dim color
+
+    const fr = Math.round(r * dimFactor), fg = Math.round(g * dimFactor), fb = Math.round(b * dimFactor);
+    const hr = Math.min(255, r + Math.round(100 * bri));
+    const hg = Math.min(255, g + Math.round(100 * bri));
+    const hb = Math.min(255, b + Math.round(100 * bri));
+
+    card.style.setProperty('--lamp-color', `rgb(${Math.round(r * bri)},${Math.round(g * bri)},${Math.round(b * bri)})`);
+    card.style.setProperty('--lamp-color-dim', `rgb(${fr},${fg},${fb})`);
+    card.style.setProperty('--lamp-highlight', `rgba(${hr},${hg},${hb},${0.3 + bri * 0.7})`);
+    card.style.setProperty('--lamp-color-alpha', `rgba(${r},${g},${b},${bri * 0.5})`);
+    card.style.setProperty('--glow-scale', (0.3 + bri * 1.2).toFixed(2));
+    card.style.setProperty('--lamp-shadow-size', Math.round(10 + bri * 60) + 'px');
+
+    label.textContent = `on \u00b7 ${brightness}/255 (${pct}%) \u00b7 ${kelvin}K \u00b7 H:${Math.round(hue)} S:${Math.round(sat)}%`;
   }
 
   function recreateCard() {
@@ -405,6 +570,7 @@
     syncRange('ctrl-white', currentState.white_value);
 
     document.getElementById('ctrl-effect').value = currentState.effect;
+    updateLamp();
   }
 
   // ============================================================
@@ -418,6 +584,7 @@
     }
     recreateCard();
     setupControls();
+    updateLamp();
   }
 
   function setupControls() {
