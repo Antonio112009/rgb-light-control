@@ -15,7 +15,7 @@ module.exports = merge(commonConfig, {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, '../dev/index.html'),
+      template: path.resolve(__dirname, '../src/dev/index.html'),
       inject: 'body',
     }),
   ],
