@@ -33,7 +33,7 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
   }
 
   get entityOptions() {
-    const allEntities = Object.keys(this.hass.states).filter(eid => ['switch', 'light', 'group'].includes(eid.substr(0, eid.indexOf('.'))));
+    const allEntities = Object.keys(this.hass.states).filter(eid => ['switch', 'light', 'group'].includes(eid.split('.')[0]));
 
     allEntities.sort();
     return allEntities;

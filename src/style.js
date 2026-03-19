@@ -11,7 +11,7 @@ const style = css`
   }
 
   .light-entity-card.group {
-    padding-bottom: 5;
+    padding-bottom: 5px;
     padding-top: 0;
   }
 
@@ -35,9 +35,6 @@ const style = css`
     @apply --paper-font-headline;
     line-height: 40px;
     color: var(--primary-text-color);
-  }
-
-  .group .light-entity-card__header {
   }
 
   .light-entity-card-sliders > div {

@@ -14,6 +14,10 @@
   "repository": "git@github.com:Antonio112009/rgb-light-control.git",
   "author": "Antonio112009",
   "license": "MIT",
+  "sideEffects": [
+    "./src/index.js",
+    "./src/dev/*.js"
+  ],
   "dependencies": {
     "@lit-labs/scoped-registry-mixin": "^1.0.4",
     "@material/mwc-icon": "^0.27.0",
