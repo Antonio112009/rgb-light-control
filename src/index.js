@@ -17,7 +17,7 @@ const SLIDER_PERCENT_MAX = 254; // max - 1 for percentage calculation
 const MIRED_KELVIN_FACTOR = 1000000;
 const DEFAULT_RGB = [255, 255, 255];
 
-const editorName = 'light-entity-card-editor';
+const editorName = 'rgb-light-controller-editor';
 customElements.define(editorName, LightEntityCardEditor);
 
 class LightEntityCard extends ScopedRegistryHost(LitElement) {
@@ -885,10 +885,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 }
 
-customElements.define('light-entity-card', LightEntityCard);
+customElements.define('rgb-light-controller', LightEntityCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'light-entity-card',
-  name: 'Light Entity Card',
+  type: 'rgb-light-controller',
+  name: 'RGB Light Controller',
   description: 'Control lights and switches',
 });

@@ -505,13 +505,15 @@
 
     bulb.className = 'lamp-bulb';
 
-    // Compute color from HS; fall back to color temp if low saturation
+    // Use color temp in White mode, HS color in RGB mode
+    const viewMode = cardRef ? cardRef._colorMode : 'rgb';
     let r, g, b;
-    if (sat < 10) {
+    if (viewMode === 'white') {
+      // Map kelvin (2000-6500) to warm amber → cool daylight
       const t = Math.max(0, Math.min(1, (kelvin - 2000) / 4500));
-      r = Math.round(255 - t * 50);
-      g = Math.round(200 + t * 40);
-      b = Math.round(150 + t * 105);
+      r = Math.round(255 - t * 30);
+      g = Math.round(180 + t * 55);
+      b = Math.round(100 + t * 155);
     } else {
       const h = hue / 360, s = sat / 100, l = 0.5;
       const hue2rgb = (p, q, t) => {
@@ -545,7 +547,10 @@
     card.style.setProperty('--glow-scale', (0.3 + bri * 1.2).toFixed(2));
     card.style.setProperty('--lamp-shadow-size', Math.round(10 + bri * 60) + 'px');
 
-    label.textContent = `on \u00b7 ${brightness}/255 (${pct}%) \u00b7 ${kelvin}K \u00b7 H:${Math.round(hue)} S:${Math.round(sat)}%`;
+    const modeInfo = viewMode === 'white'
+      ? `${kelvin}K`
+      : `H:${Math.round(hue)} S:${Math.round(sat)}%`;
+    label.textContent = `on \u00b7 ${brightness}/255 (${pct}%) \u00b7 ${modeInfo}`;
   }
 
   function recreateCard() {
