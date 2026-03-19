@@ -48,12 +48,13 @@ class MockHaSwitch extends HTMLElement {
         <input type="checkbox">
       `;
       this._input = this.shadowRoot.querySelector('input');
-      this._input.checked = this._checked || false;
       this._input.addEventListener('change', () => {
         this._checked = this._input.checked;
         this.dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
+    // Sync after connect — .checked may have been set before shadow DOM existed
+    if (this._input) this._input.checked = this._checked || false;
   }
 }
 safeDefine('ha-switch', MockHaSwitch);
@@ -75,11 +76,26 @@ safeDefine('ha-icon', MockHaIcon);
 // -- ha-slider --
 class MockHaSlider extends HTMLElement {
   static get observedAttributes() { return ['min', 'max', 'value']; }
-  get value() { return this._input ? this._input.value : (this._value || '0'); }
+
+  get value() { return this._input ? this._input.value : (this._value ?? '0'); }
   set value(v) {
     this._value = v;
-    if (this._input) this._input.value = v;
+    this._syncInput();
   }
+
+  get min() { return this._min ?? this.getAttribute('min') ?? '0'; }
+  set min(v) { this._min = v; this._syncInput(); }
+
+  get max() { return this._max ?? this.getAttribute('max') ?? '255'; }
+  set max(v) { this._max = v; this._syncInput(); }
+
+  _syncInput() {
+    if (!this._input) return;
+    if (this._min !== undefined) this._input.min = this._min;
+    if (this._max !== undefined) this._input.max = this._max;
+    if (this._value !== undefined) this._input.value = this._value;
+  }
+
   connectedCallback() {
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
@@ -88,19 +104,22 @@ class MockHaSlider extends HTMLElement {
           :host { display: flex; flex: 1; align-items: center; }
           input { width: 100%; cursor: pointer; }
         </style>
-        <input type="range" min="${this.getAttribute('min') || 0}" max="${this.getAttribute('max') || 255}">
+        <input type="range">
       `;
       this._input = this.shadowRoot.querySelector('input');
-      if (this._value !== undefined) this._input.value = this._value;
       this._input.addEventListener('change', () => {
         this.dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
+    // Always sync after connect — properties may have been set before connectedCallback
+    this._syncInput();
   }
+
   attributeChangedCallback(name, _, newVal) {
-    if (name === 'value') { this._value = newVal; if (this._input) this._input.value = newVal; }
-    if (name === 'min' && this._input) this._input.min = newVal;
-    if (name === 'max' && this._input) this._input.max = newVal;
+    if (name === 'value') this._value = newVal;
+    if (name === 'min') this._min = newVal;
+    if (name === 'max') this._max = newVal;
+    this._syncInput();
   }
 }
 safeDefine('ha-slider', MockHaSlider);

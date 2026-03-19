@@ -155,57 +155,16 @@
   // ============================================================
 
   const ENTITY_ID = 'light.living_room';
+  let cardRef = null;
 
-  function buildMockState(overrides = {}) {
-    const isOn = overrides.state !== undefined ? overrides.state : 'on';
-    const brightness = overrides.brightness !== undefined ? overrides.brightness : 180;
-    const hs = overrides.hs_color || [220, 65];
-    const colorTempK = overrides.color_temp_kelvin || 4000;
-    const effect = overrides.effect || '';
-    return {
-      [ENTITY_ID]: {
-        entity_id: ENTITY_ID,
-        state: isOn,
-        attributes: {
-          friendly_name: 'Living Room Light',
-          brightness: brightness,
-          hs_color: hs,
-          rgb_color: [100, 149, 237],
-          color_temp_kelvin: colorTempK,
-          min_color_temp_kelvin: 2000,
-          max_color_temp_kelvin: 6500,
-          supported_color_modes: ['hs', 'color_temp', 'rgb'],
-          supported_features: 63,
-          effect: effect,
-          effect_list: ['Rainbow', 'Breathe', 'Strobe', 'Color Loop', 'Candle'],
-        },
-      },
-    };
-  }
+  let currentState = {
+    state: 'on',
+    brightness: 180,
+    hs_color: [220, 65],
+    color_temp_kelvin: 4000,
+    effect: '',
+  };
 
-  function buildHass(stateOverrides) {
-    const states = buildMockState(stateOverrides);
-    return {
-      states: states,
-      localize: (key) => {
-        const map = { 'ui.card.light.effect': 'Effect' };
-        return map[key] || key;
-      },
-      callService: (domain, service, data) => {
-        console.log(`[hass.callService] ${domain}.${service}`, JSON.stringify(data));
-        const statusBar = document.getElementById('status-bar');
-        if (statusBar) {
-          statusBar.textContent = `${domain}.${service}(${JSON.stringify(data)})`;
-        }
-      },
-    };
-  }
-
-  // ============================================================
-  //  Card setup
-  // ============================================================
-
-  let currentState = { state: 'on', brightness: 180, hs_color: [220, 65], color_temp_kelvin: 4000, effect: '' };
   let currentConfig = {
     entity: ENTITY_ID,
     color_picker: true,
@@ -215,25 +174,97 @@
     persist_features: false,
   };
 
+  function buildHass() {
+    return {
+      states: {
+        [ENTITY_ID]: {
+          entity_id: ENTITY_ID,
+          state: currentState.state,
+          attributes: {
+            friendly_name: 'Living Room Light',
+            brightness: currentState.brightness,
+            hs_color: [...currentState.hs_color],
+            rgb_color: [100, 149, 237],
+            color_temp_kelvin: currentState.color_temp_kelvin,
+            min_color_temp_kelvin: 2000,
+            max_color_temp_kelvin: 6500,
+            supported_color_modes: ['hs', 'color_temp', 'rgb'],
+            supported_features: 63,
+            effect: currentState.effect,
+            effect_list: ['Rainbow', 'Breathe', 'Strobe', 'Color Loop', 'Candle'],
+          },
+        },
+      },
+      localize: (key) => {
+        const map = { 'ui.card.light.effect': 'Effect' };
+        return map[key] || key;
+      },
+      // When the card calls a service, update our mock state and re-render
+      callService: (domain, service, data) => {
+        const statusBar = document.getElementById('status-bar');
+        statusBar.textContent = `${domain}.${service}(${JSON.stringify(data)})`;
+        console.log(`[hass.callService] ${domain}.${service}`, data);
+
+        // Simulate HA backend: apply service data back to state
+        if (service === 'turn_off') {
+          currentState.state = 'off';
+          syncControlsFromState();
+        } else if (service === 'turn_on') {
+          currentState.state = 'on';
+          if (data.brightness !== undefined) currentState.brightness = data.brightness;
+          if (data.hs_color) currentState.hs_color = [...data.hs_color];
+          if (data.color_temp_kelvin !== undefined) currentState.color_temp_kelvin = data.color_temp_kelvin;
+          if (data.effect !== undefined) currentState.effect = data.effect;
+          syncControlsFromState();
+        }
+        // Feed updated state back to card
+        updateCard();
+      },
+    };
+  }
+
   function updateCard() {
-    const card = document.querySelector('light-entity-card');
-    if (!card) return;
-    card.hass = buildHass(currentState);
+    if (!cardRef) return;
+    cardRef.hass = buildHass();
   }
 
   function recreateCard() {
     const container = document.getElementById('card-container');
     container.innerHTML = '';
     const card = document.createElement('light-entity-card');
-    card.setConfig(currentConfig);
-    card.hass = buildHass(currentState);
+    card.setConfig({ ...currentConfig });
+    card.hass = buildHass();
     container.appendChild(card);
+    cardRef = card;
+  }
+
+  // Sync right-panel controls to reflect current state
+  function syncControlsFromState() {
+    const power = document.getElementById('ctrl-power');
+    power.checked = currentState.state === 'on';
+
+    const bar = document.getElementById('status-bar');
+    bar.textContent = `${ENTITY_ID}: ${currentState.state}`;
+    bar.className = currentState.state === 'on' ? 'status-bar' : 'status-bar off';
+
+    document.getElementById('ctrl-brightness').value = currentState.brightness;
+    document.getElementById('ctrl-brightness-val').textContent = currentState.brightness;
+
+    document.getElementById('ctrl-colortemp').value = currentState.color_temp_kelvin;
+    document.getElementById('ctrl-colortemp-val').textContent = currentState.color_temp_kelvin;
+
+    document.getElementById('ctrl-hue').value = currentState.hs_color[0];
+    document.getElementById('ctrl-hue-val').textContent = Math.round(currentState.hs_color[0]);
+
+    document.getElementById('ctrl-sat').value = currentState.hs_color[1];
+    document.getElementById('ctrl-sat-val').textContent = Math.round(currentState.hs_color[1]);
+
+    document.getElementById('ctrl-effect').value = currentState.effect;
   }
 
   // Wait for the card bundle to load, then initialize
   function init() {
     if (!customElements.get('light-entity-card')) {
-      // retry until card is defined (bundle may still be loading)
       setTimeout(init, 100);
       return;
     }
@@ -243,12 +274,9 @@
 
   function setupControls() {
     // Power toggle
-    const power = document.getElementById('ctrl-power');
-    power.addEventListener('change', () => {
-      currentState.state = power.checked ? 'on' : 'off';
-      const bar = document.getElementById('status-bar');
-      bar.textContent = `${ENTITY_ID}: ${currentState.state}`;
-      bar.className = power.checked ? 'status-bar' : 'status-bar off';
+    document.getElementById('ctrl-power').addEventListener('change', (e) => {
+      currentState.state = e.target.checked ? 'on' : 'off';
+      syncControlsFromState();
       updateCard();
     });
 
@@ -257,7 +285,7 @@
       const input = document.getElementById(id);
       const valSpan = document.getElementById(valId);
       input.addEventListener('input', () => {
-        const v = parseInt(input.value, 10);
+        const v = parseFloat(input.value);
         if (stateKey === 'hs_color') {
           currentState.hs_color[0] = v;
         } else if (stateKey === 'sat') {
@@ -265,7 +293,7 @@
         } else {
           currentState[stateKey] = v;
         }
-        valSpan.textContent = v;
+        valSpan.textContent = Math.round(v);
         updateCard();
       });
     }
@@ -294,7 +322,6 @@
     configCheckbox('cfg-persist', 'persist_features');
   }
 
-  // Start when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
