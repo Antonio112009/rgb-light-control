@@ -15,7 +15,10 @@ module.exports = {
         use: {
           loader: "babel-loader",
           options: {
-            presets: ["@babel/preset-env"],
+            configFile: false, // ignore project babel.config.js for node_modules
+            presets: [
+              ["@babel/preset-env", { modules: false, targets: { esmodules: true } }],
+            ],
           },
         },
       },

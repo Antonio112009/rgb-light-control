@@ -5,7 +5,6 @@ import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import style from './style';
 import defaultConfig from './defaults';
 import LightEntityCardEditor from './index-editor';
-import packageJson from '../package.json';
 import buildElementDefinitions from './buildElementDefinitions';
 import globalElementLoader from './globalElementLoader';
 
@@ -14,16 +13,12 @@ const BRIGHTNESS_MIN = 1;
 const BRIGHTNESS_MAX = 255;
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 255;
-const PERCENT_CALC_MAX = 254; // max - 1 for percentage calculation
+const SLIDER_PERCENT_MAX = 254; // max - 1 for percentage calculation
 const MIRED_KELVIN_FACTOR = 1000000;
-const COLOR_TEMP_PERCENT_MIN = 0;
-const COLOR_TEMP_PERCENT_MAX = 100;
 const DEFAULT_RGB = [255, 255, 255];
 
 const editorName = 'light-entity-card-editor';
 customElements.define(editorName, LightEntityCardEditor);
-
-// Version available via HACS / package.json — no console output needed
 
 class LightEntityCard extends ScopedRegistryHost(LitElement) {
   static get elementDefinitions() {
@@ -316,7 +311,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           min="${SLIDER_MIN}"
           max="${SLIDER_MAX}"
         ></ha-slider>
-        ${this.showPercent(stateObj.attributes.speed, 0, 254)}
+        ${this.showPercent(stateObj.attributes.speed, 0, SLIDER_PERCENT_MAX)}
       </div>
     `;
   }
@@ -341,7 +336,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           min="${SLIDER_MIN}"
           max="${SLIDER_MAX}"
         ></ha-slider>
-        ${this.showPercent(stateObj.attributes.intensity, 0, 254)}
+        ${this.showPercent(stateObj.attributes.intensity, 0, SLIDER_PERCENT_MAX)}
       </div>
     `;
   }
@@ -521,7 +516,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           @change="${event => this._setWhiteValue(event, stateObj, 3)}"
         >
         </ha-slider>
-        ${this.showPercent(whiteValue, 0, 254)}
+        ${this.showPercent(whiteValue, 0, SLIDER_PERCENT_MAX)}
       </div>
     `;
   }
@@ -548,7 +543,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           @change="${event => this._setWhiteValue(event, stateObj, 4)}"
         >
         </ha-slider>
-        ${this.showPercent(warmWhiteValue, 0, 254)}
+        ${this.showPercent(warmWhiteValue, 0, SLIDER_PERCENT_MAX)}
       </div>
     `;
   }

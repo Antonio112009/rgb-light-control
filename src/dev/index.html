@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Light Entity Card - Dev Preview</title>
+  <style>
+    :root {
+      --primary-text-color: #212121;
+      --secondary-text-color: #727272;
+      --primary-color: #03a9f4;
+      --accent-color: #ff9800;
+      --divider-color: #e0e0e0;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Roboto, 'Noto Sans', sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      color: var(--primary-text-color);
+    }
+
+    h1 { font-size: 1.4em; margin-bottom: 8px; }
+    h2 { font-size: 1.1em; margin-bottom: 8px; }
+
+    .layout {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card-preview {
+      flex: 1 1 400px;
+      min-width: 320px;
+    }
+
+    .controls-panel {
+      flex: 0 0 320px;
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .controls-panel label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 14px;
+    }
+
+    .controls-panel input[type="range"] { flex: 1; }
+    .controls-panel select { width: 100%; padding: 4px; margin: 4px 0; }
+
+    .status-bar {
+      background: #e8f5e9;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    .status-bar.off { background: #fce4ec; }
+  </style>
+</head>
+<body>
+
+<h1>Light Entity Card &mdash; Dev Preview</h1>
+<div class="layout">
+  <div class="card-preview">
+    <div id="card-container"></div>
+  </div>
+
+  <div class="controls-panel">
+    <h2>Mock Entity State</h2>
+    <div id="status-bar" class="status-bar">light.living_room: on</div>
+
+    <label>
+      <input type="checkbox" id="ctrl-power" checked>
+      Power
+    </label>
+
+    <label>
+      Brightness
+      <input type="range" id="ctrl-brightness" min="0" max="255" value="180">
+      <span id="ctrl-brightness-val">180</span>
+    </label>
+
+    <label>
+      Color Temp (K)
+      <input type="range" id="ctrl-colortemp" min="2000" max="6500" value="4000">
+      <span id="ctrl-colortemp-val">4000</span>
+    </label>
+
+    <label>
+      Hue
+      <input type="range" id="ctrl-hue" min="0" max="360" value="220">
+      <span id="ctrl-hue-val">220</span>
+    </label>
+
+    <label>
+      Saturation
+      <input type="range" id="ctrl-sat" min="0" max="100" value="65">
+      <span id="ctrl-sat-val">65</span>
+    </label>
+
+    <label>
+      Effect
+      <select id="ctrl-effect">
+        <option value="">None</option>
+        <option value="Rainbow">Rainbow</option>
+        <option value="Breathe">Breathe</option>
+        <option value="Strobe">Strobe</option>
+        <option value="Color Loop">Color Loop</option>
+        <option value="Candle">Candle</option>
+      </select>
+    </label>
+
+    <hr>
+    <h2>Card Config</h2>
+    <label>
+      <input type="checkbox" id="cfg-color-picker" checked>
+      Show Color Picker
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-effects" checked>
+      Show Effects List
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-percent" checked>
+      Show Slider Percent
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-kelvin">
+      Color Temp in Kelvin
+    </label>
+    <label>
+      <input type="checkbox" id="cfg-persist">
+      Persist Features
+    </label>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  //  Mock HA Custom Elements
+  //  These lightweight stubs let the card render outside HA.
+  // ============================================================
+
+  // Utility: define element only if not already defined
+  function safeDefine(name, clazz) {
+    if (!customElements.get(name)) customElements.define(name, clazz);
+  }
+
+  // -- ha-card --
+  class MockHaCard extends HTMLElement {
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            :host {
+              display: block;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+              overflow: hidden;
+            }
+          </style>
+          <slot></slot>
+        `;
+      }
+    }
+  }
+  safeDefine('ha-card', MockHaCard);
+
+  // -- ha-switch --
+  class MockHaSwitch extends HTMLElement {
+    static get observedAttributes() { return ['checked']; }
+    get checked() { return this._checked; }
+    set checked(v) {
+      this._checked = Boolean(v);
+      if (this._input) this._input.checked = this._checked;
+    }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            :host { display: inline-flex; align-items: center; }
+            input { width: 40px; height: 20px; cursor: pointer; }
+          </style>
+          <input type="checkbox">
+        `;
+        this._input = this.shadowRoot.querySelector('input');
+        this._input.checked = this._checked || false;
+        this._input.addEventListener('change', () => {
+          this._checked = this._input.checked;
+          this.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      }
+    }
+  }
+  safeDefine('ha-switch', MockHaSwitch);
+
+  // -- ha-icon --
+  class MockHaIcon extends HTMLElement {
+    static get observedAttributes() { return ['icon']; }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>:host { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: #757575; }</style>
+          <span title="${this.getAttribute('icon') || ''}">&#9728;</span>
+        `;
+      }
+    }
+  }
+  safeDefine('ha-icon', MockHaIcon);
+
+  // -- ha-slider --
+  class MockHaSlider extends HTMLElement {
+    static get observedAttributes() { return ['min', 'max', 'value']; }
+    get value() { return this._input ? this._input.value : this._value || '0'; }
+    set value(v) {
+      this._value = v;
+      if (this._input) this._input.value = v;
+    }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            :host { display: flex; flex: 1; align-items: center; }
+            input { width: 100%; cursor: pointer; }
+          </style>
+          <input type="range" min="${this.getAttribute('min') || 0}" max="${this.getAttribute('max') || 255}">
+        `;
+        this._input = this.shadowRoot.querySelector('input');
+        if (this._value !== undefined) this._input.value = this._value;
+        this._input.addEventListener('change', () => {
+          this.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      }
+    }
+    attributeChangedCallback(name, _, newVal) {
+      if (name === 'value') { this._value = newVal; if (this._input) this._input.value = newVal; }
+      if (name === 'min' && this._input) this._input.min = newVal;
+      if (name === 'max' && this._input) this._input.max = newVal;
+    }
+  }
+  safeDefine('ha-slider', MockHaSlider);
+
+  // -- ha-hs-color-picker (simplified mock) --
+  class MockHsColorPicker extends HTMLElement {
+    get value() { return this._value || [0, 0]; }
+    set value(v) { this._value = v; this._render(); }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this._render();
+      }
+    }
+    _render() {
+      const [h, s] = this._value || [0, 0];
+      if (!this.shadowRoot) return;
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host { display: block; }
+          .wheel {
+            width: 200px; height: 200px; border-radius: 50%;
+            background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+            position: relative; cursor: crosshair;
+            margin: 0 auto;
+          }
+          .marker {
+            position: absolute; width: 16px; height: 16px;
+            border-radius: 50%; border: 2px solid white;
+            background: hsl(${h}, ${Math.round(s * 100)}%, 50%);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+            transform: translate(-50%, -50%);
+            left: ${50 + s * 40 * Math.cos((h - 90) * Math.PI / 180)}%;
+            top: ${50 + s * 40 * Math.sin((h - 90) * Math.PI / 180)}%;
+          }
+          .label { text-align: center; font-size: 12px; color: #999; margin-top: 4px; }
+        </style>
+        <div class="wheel"><div class="marker"></div></div>
+        <div class="label">H: ${Math.round(h)} S: ${Math.round(s * 100)}%</div>
+      `;
+    }
+  }
+  safeDefine('ha-hs-color-picker', MockHsColorPicker);
+
+  // -- ha-select --
+  class MockHaSelect extends HTMLElement {
+    static get observedAttributes() { return ['label']; }
+    get value() { return this._select ? this._select.value : ''; }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            :host { display: block; }
+            select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+            label { font-size: 12px; color: #999; }
+          </style>
+          <label>${this.getAttribute('label') || ''}</label>
+          <select></select>
+        `;
+        this._select = this.shadowRoot.querySelector('select');
+        this._syncSlotItems();
+        this._select.addEventListener('change', () => {
+          this.dispatchEvent(new CustomEvent('selected', { detail: { index: this._select.selectedIndex }, bubbles: true }));
+        });
+        // Watch for slot changes
+        const slot = document.createElement('slot');
+        slot.style.display = 'none';
+        this.shadowRoot.appendChild(slot);
+      }
+    }
+    _syncSlotItems() {
+      if (!this._select) return;
+      this._select.innerHTML = '';
+      this.querySelectorAll('mwc-list-item').forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.getAttribute('value') || item.textContent;
+        opt.textContent = item.textContent;
+        if (item.hasAttribute('selected')) opt.selected = true;
+        this._select.appendChild(opt);
+      });
+    }
+  }
+  safeDefine('ha-select', MockHaSelect);
+
+  // -- mwc-list-item --
+  class MockMwcListItem extends HTMLElement {
+    static get observedAttributes() { return ['value', 'selected']; }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = '<slot></slot>';
+      }
+    }
+  }
+  safeDefine('mwc-list-item', MockMwcListItem);
+
+  // -- state-badge --
+  class MockStateBadge extends HTMLElement {
+    set stateObj(v) {
+      this._stateObj = v;
+      this._render();
+    }
+    connectedCallback() {
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+        this._render();
+      }
+    }
+    _render() {
+      if (!this.shadowRoot) return;
+      const on = this._stateObj && this._stateObj.state === 'on';
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; }
+          .badge { width: 32px; height: 32px; border-radius: 50%; background: ${on ? '#fdd835' : '#bdbdbd'}; }
+        </style>
+        <div class="badge"></div>
+      `;
+    }
+  }
+  safeDefine('state-badge', MockStateBadge);
+
+  // -- more-info-light (stub) --
+  class MockMoreInfoLight extends HTMLElement {}
+  safeDefine('more-info-light', MockMoreInfoLight);
+
+  // ============================================================
+  //  Mock hass object & entity state
+  // ============================================================
+
+  const ENTITY_ID = 'light.living_room';
+
+  function buildMockState(overrides = {}) {
+    const isOn = overrides.state !== undefined ? overrides.state : 'on';
+    const brightness = overrides.brightness !== undefined ? overrides.brightness : 180;
+    const hs = overrides.hs_color || [220, 65];
+    const colorTempK = overrides.color_temp_kelvin || 4000;
+    const effect = overrides.effect || '';
+    return {
+      [ENTITY_ID]: {
+        entity_id: ENTITY_ID,
+        state: isOn,
+        attributes: {
+          friendly_name: 'Living Room Light',
+          brightness: brightness,
+          hs_color: hs,
+          rgb_color: [100, 149, 237],
+          color_temp_kelvin: colorTempK,
+          min_color_temp_kelvin: 2000,
+          max_color_temp_kelvin: 6500,
+          supported_color_modes: ['hs', 'color_temp', 'rgb'],
+          supported_features: 63,
+          effect: effect,
+          effect_list: ['Rainbow', 'Breathe', 'Strobe', 'Color Loop', 'Candle'],
+        },
+      },
+    };
+  }
+
+  function buildHass(stateOverrides) {
+    const states = buildMockState(stateOverrides);
+    return {
+      states: states,
+      localize: (key) => {
+        const map = { 'ui.card.light.effect': 'Effect' };
+        return map[key] || key;
+      },
+      callService: (domain, service, data) => {
+        console.log(`[hass.callService] ${domain}.${service}`, JSON.stringify(data));
+        const statusBar = document.getElementById('status-bar');
+        if (statusBar) {
+          statusBar.textContent = `${domain}.${service}(${JSON.stringify(data)})`;
+        }
+      },
+    };
+  }
+
+  // ============================================================
+  //  Card setup
+  // ============================================================
+
+  let currentState = { state: 'on', brightness: 180, hs_color: [220, 65], color_temp_kelvin: 4000, effect: '' };
+  let currentConfig = {
+    entity: ENTITY_ID,
+    color_picker: true,
+    effects_list: true,
+    show_slider_percent: true,
+    color_temp_in_kelvin: false,
+    persist_features: false,
+  };
+
+  function updateCard() {
+    const card = document.querySelector('light-entity-card');
+    if (!card) return;
+    card.hass = buildHass(currentState);
+  }
+
+  function recreateCard() {
+    const container = document.getElementById('card-container');
+    container.innerHTML = '';
+    const card = document.createElement('light-entity-card');
+    card.setConfig(currentConfig);
+    card.hass = buildHass(currentState);
+    container.appendChild(card);
+  }
+
+  // Wait for the card bundle to load, then initialize
+  function init() {
+    if (!customElements.get('light-entity-card')) {
+      // retry until card is defined (bundle may still be loading)
+      setTimeout(init, 100);
+      return;
+    }
+    recreateCard();
+    setupControls();
+  }
+
+  function setupControls() {
+    // Power toggle
+    const power = document.getElementById('ctrl-power');
+    power.addEventListener('change', () => {
+      currentState.state = power.checked ? 'on' : 'off';
+      const bar = document.getElementById('status-bar');
+      bar.textContent = `${ENTITY_ID}: ${currentState.state}`;
+      bar.className = power.checked ? 'status-bar' : 'status-bar off';
+      updateCard();
+    });
+
+    // Range sliders
+    function rangeCtrl(id, stateKey, valId) {
+      const input = document.getElementById(id);
+      const valSpan = document.getElementById(valId);
+      input.addEventListener('input', () => {
+        const v = parseInt(input.value, 10);
+        if (stateKey === 'hs_color') {
+          currentState.hs_color[0] = v;
+        } else if (stateKey === 'sat') {
+          currentState.hs_color[1] = v;
+        } else {
+          currentState[stateKey] = v;
+        }
+        valSpan.textContent = v;
+        updateCard();
+      });
+    }
+    rangeCtrl('ctrl-brightness', 'brightness', 'ctrl-brightness-val');
+    rangeCtrl('ctrl-colortemp', 'color_temp_kelvin', 'ctrl-colortemp-val');
+    rangeCtrl('ctrl-hue', 'hs_color', 'ctrl-hue-val');
+    rangeCtrl('ctrl-sat', 'sat', 'ctrl-sat-val');
+
+    // Effect select
+    document.getElementById('ctrl-effect').addEventListener('change', (e) => {
+      currentState.effect = e.target.value;
+      updateCard();
+    });
+
+    // Config checkboxes (recreate card on config change)
+    function configCheckbox(id, configKey) {
+      document.getElementById(id).addEventListener('change', (e) => {
+        currentConfig[configKey] = e.target.checked;
+        recreateCard();
+      });
+    }
+    configCheckbox('cfg-color-picker', 'color_picker');
+    configCheckbox('cfg-effects', 'effects_list');
+    configCheckbox('cfg-percent', 'show_slider_percent');
+    configCheckbox('cfg-kelvin', 'color_temp_in_kelvin');
+    configCheckbox('cfg-persist', 'persist_features');
+  }
+
+  // Start when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>
+
+</body>
+</html>
