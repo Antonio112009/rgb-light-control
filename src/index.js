@@ -74,6 +74,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       _colorMode: { state: true },
       _rgbView: { state: true },
       _colorPickerReady: { state: true },
+      _liveValues: { state: true },
     };
   }
 
@@ -145,6 +146,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
     if (this._colorMode === undefined) this._colorMode = null;
     if (this._rgbView === undefined) this._rgbView = 'dots';
+    if (this._liveValues === undefined) this._liveValues = {};
   }
 
   static async getConfigElement() {
@@ -458,7 +460,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (this.config[attr] === false) return html``;
     if (!this.shouldShowFeature(attr, stateObj)) return html``;
 
-    const value = stateObj.attributes[attr] ?? 0;
+    const stateValue = stateObj.attributes[attr] ?? 0;
+    const liveKey = `${stateObj.entity_id}_${attr}`;
+    const value = this._liveValues?.[liveKey] ?? stateValue;
     const title = attr.charAt(0).toUpperCase() + attr.slice(1);
 
     return html`
@@ -467,8 +471,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           <ha-icon icon="hass:${icon}"></ha-icon>
         </div>
         <ha-slider
-          .value="${value}"
-          @change="${e => this._setAttrValue(e, stateObj, attr)}"
+          .value="${stateValue}"
+          @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
+          @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; this._setAttrValue(e, stateObj, attr); }}"
           min="${min}"
           max="${max}"
           aria-label="${title}"
@@ -483,7 +488,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _createSaturationSlider(stateObj) {
     if (!this.shouldShowFeature('color', stateObj)) return html``;
     const hs = stateObj.attributes.hs_color || [0, 0];
-    const saturation = Math.round(hs[1]);
+    const stateSaturation = Math.round(hs[1]);
+    const liveKey = `${stateObj.entity_id}_saturation`;
+    const saturation = this._liveValues?.[liveKey] ?? stateSaturation;
 
     return html`
       <div class="control light-entity-card-center">
@@ -491,8 +498,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           <ha-icon icon="hass:palette"></ha-icon>
         </div>
         <ha-slider
-          .value="${saturation}"
-          @change="${e => this._setSaturation(e, stateObj)}"
+          .value="${stateSaturation}"
+          @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
+          @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; this._setSaturation(e, stateObj); }}"
           min="0"
           max="100"
           aria-label="Saturation"
@@ -573,12 +581,12 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const { usesKelvin, kelvin, minK, maxK, minMired, maxMired } = range;
     const showInKelvin = this.config.color_temp_in_kelvin;
 
-    let sliderMin, sliderMax, sliderValue, sliderClass, changeHandler;
+    let sliderMin, sliderMax, stateSliderValue, sliderClass, changeHandler;
 
     if (showInKelvin) {
       sliderMin = minK;
       sliderMax = maxK;
-      sliderValue = kelvin ?? Math.round((minK + maxK) / 2);
+      stateSliderValue = kelvin ?? Math.round((minK + maxK) / 2);
       sliderClass = 'light-entity-card-color_temp light-entity-card-color_temp--kelvin';
       changeHandler = e => this._setColorTemp(e, stateObj, usesKelvin, true);
     } else {
@@ -586,12 +594,15 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       const currentMired = kelvin ? Math.round(MIRED_KELVIN_FACTOR / kelvin) : null;
       sliderMin = 0;
       sliderMax = 100;
-      sliderValue = miredRange > 0 && currentMired !== null
+      stateSliderValue = miredRange > 0 && currentMired !== null
         ? Math.round(((currentMired - minMired) / miredRange) * 100)
         : 50;
       sliderClass = 'light-entity-card-color_temp';
       changeHandler = e => this._setColorTemp(e, stateObj, usesKelvin, false, minMired, maxMired);
     }
+
+    const liveKey = `${stateObj.entity_id}_color_temp`;
+    const sliderValue = this._liveValues?.[liveKey] ?? stateSliderValue;
 
     return html`
       <div class="control light-entity-card-center">
@@ -602,8 +613,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           class="${sliderClass}"
           min="${sliderMin}"
           max="${sliderMax}"
-          .value=${sliderValue}
-          @change="${changeHandler}"
+          .value=${stateSliderValue}
+          @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
+          @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; changeHandler(e); }}"
           aria-label="Color temperature"
         ></ha-slider>
         ${this._showPercent(sliderValue, sliderMin, sliderMax, 'color_temp')}
@@ -638,7 +650,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (this.config[configKey] === false) return html``;
     if (!this.shouldShowFeature(featureName, stateObj)) return html``;
 
-    const value = this._getWhiteValue(stateObj, index);
+    const stateValue = this._getWhiteValue(stateObj, index);
+    const liveKey = `${stateObj.entity_id}_${channel}`;
+    const value = this._liveValues?.[liveKey] ?? stateValue;
 
     return html`
       <div class="control light-entity-card-center">
@@ -647,8 +661,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         </div>
         <ha-slider
           max="255"
-          .value="${value}"
-          @change="${e => this._setWhiteValue(e, stateObj, index)}"
+          .value="${stateValue}"
+          @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
+          @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; this._setWhiteValue(e, stateObj, index); }}"
           aria-label="${title} value"
         ></ha-slider>
         ${this._showPercent(value, 0, SLIDER_PERCENT_MAX)}

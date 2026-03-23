@@ -20,6 +20,13 @@ const style = css`
     min-width: 0;
   }
 
+  ha-slider {
+    /* Suppress the ha-slider's built-in raw-value pin/tooltip so only
+       our own percent label (percent-slider) is shown to the user. */
+    --mdc-slider-label-container-color: transparent;
+    --mdc-slider-label-ink-color: transparent;
+  }
+
   .percent-slider {
     color: var(--primary-text-color);
     display: flex;
