@@ -25,6 +25,9 @@ const style = css`
        our own percent label (percent-slider) is shown to the user. */
     --mdc-slider-label-container-color: transparent;
     --mdc-slider-label-ink-color: transparent;
+    --md-slider-label-container-color: transparent;
+    --md-slider-label-label-text-color: transparent;
+    --md-slider-label-container-height: 0px;
   }
 
   .percent-slider {

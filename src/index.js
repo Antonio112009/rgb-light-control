@@ -472,6 +472,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         </div>
         <ha-slider
           .value="${stateValue}"
+          .labeled=${false}
           @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
           @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; this._setAttrValue(e, stateObj, attr); }}"
           min="${min}"
@@ -499,6 +500,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         </div>
         <ha-slider
           .value="${stateSaturation}"
+          .labeled=${false}
           @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
           @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; this._setSaturation(e, stateObj); }}"
           min="0"
@@ -614,6 +616,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           min="${sliderMin}"
           max="${sliderMax}"
           .value=${stateSliderValue}
+          .labeled=${false}
           @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
           @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; changeHandler(e); }}"
           aria-label="Color temperature"
@@ -662,6 +665,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         <ha-slider
           max="255"
           .value="${stateValue}"
+          .labeled=${false}
           @input="${e => { this._liveValues = { ...this._liveValues, [liveKey]: parseInt(e.target.value, 10) }; }}"
           @change="${e => { this._liveValues = { ...this._liveValues, [liveKey]: undefined }; this._setWhiteValue(e, stateObj, index); }}"
           aria-label="${title} value"
