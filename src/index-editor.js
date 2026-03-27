@@ -10,13 +10,13 @@ import { fireEvent } from './utils/fire-event';
 const CHECKBOX_ROWS = [
   [{ label: 'Shorten Cards', key: 'shorten_cards' }],
   [{ label: 'Persist Features', key: 'persist_features' }, { label: 'Show Brightness', key: 'brightness' }],
-  [{ label: 'Show Color Temp', key: 'color_temp' }, { label: 'Color Temp in Kelvin', key: 'color_temp_in_kelvin' }],
+  [{ label: 'Show Color Temp', key: 'color_temp' }],
   [{ label: 'Show White Channel', key: 'white_value' }],
   [{ label: 'Show Warm White', key: 'warm_white_value' }],
   [{ label: 'Show Speed', key: 'speed' }, { label: 'Show Intensity', key: 'intensity' }],
   [{ label: 'Show Color Picker', key: 'color_picker' }, { label: 'Show Effects List', key: 'effects_list' }],
   [{ label: 'Full Width Sliders', key: 'full_width_sliders' }, { label: 'Show Slider Percent', key: 'show_slider_percent' }],
-  [{ label: 'Show Brightness %', key: 'show_brightness_percent' }, { label: 'Show Color Temp %', key: 'show_color_temp_percent' }],
+  [{ label: 'Show Brightness %', key: 'show_brightness_percent' }],
   [{ label: 'Hide Header', key: 'hide_header' }, { label: 'Show Header Icon', key: 'show_header_icon' }, { label: 'Child Card', key: 'child_card' }],
   [{ label: 'Force Features', key: 'force_features' }],
   [{ label: 'Consolidate Entities', key: 'consolidate_entities' }],
@@ -29,6 +29,11 @@ const ICON_FIELDS = [
   { name: 'white_icon', label: 'White Icon' },
   { name: 'warm_white_icon', label: 'Warm White Icon' },
   { name: 'temperature_icon', label: 'Temperature Icon' },
+];
+
+const COLOR_TEMP_FIELDS = [
+  { name: 'min_color_temp_kelvin', label: 'Minimum K' },
+  { name: 'max_color_temp_kelvin', label: 'Maximum K' },
 ];
 
 export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement) {
@@ -105,6 +110,7 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
         </div>
         <div class="entities">
           ${this._renderIconFields(ICON_FIELDS.slice(2))}
+          ${this._renderTextFields(COLOR_TEMP_FIELDS)}
           <ha-form-string
             .schema=${{ name: 'transition', type: 'string' }}
             label="Transition (seconds)"
@@ -134,26 +140,45 @@ export default class LightEntityCardEditor extends ScopedRegistryHost(LitElement
   }
 
   _renderIconFields(fields) {
+    return this._renderTextFields(fields);
+  }
+
+  _renderTextFields(fields) {
     return fields.map(({ name, label }) => html`
       <ha-form-string
         .schema=${{ name, type: 'string' }}
         label="${label}"
-        .data="${this._config[name]}"
+        .data="${this._stringValue(name)}"
         .configValue="${name}"
         @changed="${this._onConfigChanged}"
       ></ha-form-string>
     `);
   }
 
+  _stringValue(key) {
+    const value = this._config[key];
+    return value === null || value === undefined ? '' : String(value);
+  }
+
   _onConfigChanged(ev) {
     if (!this._config || !this.hass || !this._firstRendered) return;
     const { target: { configValue, value }, detail } = ev;
-    const newValue = (detail && detail.value !== undefined && detail.value !== null)
+    const rawValue = (detail && detail.value !== undefined && detail.value !== null)
       ? detail.value
       : value;
+    const newValue = this._normalizeConfigValue(configValue, rawValue);
 
     this._config = { ...this._config, [configValue]: newValue };
     fireEvent(this, 'config-changed', { config: this._config });
+  }
+
+  _normalizeConfigValue(configValue, value) {
+    if (configValue === 'min_color_temp_kelvin' || configValue === 'max_color_temp_kelvin') {
+      const trimmed = String(value ?? '').trim();
+      return trimmed === '' ? null : trimmed;
+    }
+
+    return value;
   }
 
   _onCheckboxChanged(ev) {

@@ -297,7 +297,7 @@
       <label><input type="checkbox" id="cfg-white_value" checked> white_value</label>
       <label><input type="checkbox" id="cfg-warm_white_value" checked> warm_white_value</label>
       <label><input type="checkbox" id="cfg-color_picker" checked> color_picker</label>
-      <label><input type="checkbox" id="cfg-effects_list" checked> effects_list</label>
+      <label><input type="checkbox" id="cfg-effects_list"> effects_list</label>
       <label><input type="checkbox" id="cfg-speed"> speed</label>
       <label><input type="checkbox" id="cfg-intensity"> intensity</label>
       <label><input type="checkbox" id="cfg-force_features"> force_features</label>
@@ -311,11 +311,14 @@
       <label><input type="checkbox" id="cfg-full_width_sliders"> full_width_sliders</label>
       <label><input type="checkbox" id="cfg-show_slider_percent" checked> show_slider_percent</label>
       <label><input type="checkbox" id="cfg-show_brightness_percent"> show_brightness_%</label>
-      <label><input type="checkbox" id="cfg-show_color_temp_percent"> show_color_temp_%</label>
-      <label><input type="checkbox" id="cfg-color_temp_in_kelvin"> color_temp_in_kelvin</label>
       <label><input type="checkbox" id="cfg-hide_header"> hide_header</label>
       <label><input type="checkbox" id="cfg-show_header_icon"> show_header_icon</label>
       <label><input type="checkbox" id="cfg-child_card"> child_card</label>
+    </div>
+
+    <div class="checkbox-grid">
+      <label>min_color_temp_kelvin <input type="number" id="cfg-min_color_temp_kelvin" min="1000" step="100" placeholder="entity min"></label>
+      <label>max_color_temp_kelvin <input type="number" id="cfg-max_color_temp_kelvin" min="1000" step="100" placeholder="entity max"></label>
     </div>
 
     <div class="checkbox-grid">
@@ -371,8 +374,8 @@
       'color_picker', 'effects_list', 'speed', 'intensity',
       'force_features', 'persist_features',
       'shorten_cards', 'consolidate_entities', 'full_width_sliders',
-      'show_slider_percent', 'show_brightness_percent', 'show_color_temp_percent',
-      'color_temp_in_kelvin', 'hide_header', 'show_header_icon', 'child_card',
+      'show_slider_percent', 'show_brightness_percent',
+      'hide_header', 'show_header_icon', 'child_card',
     ];
     booleans.forEach(key => {
       const el = document.getElementById('cfg-' + key);
@@ -392,6 +395,12 @@
     // Transition
     const transition = parseFloat(document.getElementById('cfg-transition').value);
     if (transition > 0) cfg.transition = transition;
+
+    const minColorTemp = document.getElementById('cfg-min_color_temp_kelvin').value;
+    if (minColorTemp) cfg.min_color_temp_kelvin = parseInt(minColorTemp, 10);
+
+    const maxColorTemp = document.getElementById('cfg-max_color_temp_kelvin').value;
+    if (maxColorTemp) cfg.max_color_temp_kelvin = parseInt(maxColorTemp, 10);
 
     return cfg;
   }

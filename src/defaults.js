@@ -12,7 +12,7 @@ export default {
   white_value: true,
   warm_white_value: true,
   color_picker: true,
-  effects_list: true,
+  effects_list: false,
   speed: true,
   intensity: true,
 
@@ -22,7 +22,8 @@ export default {
 
   show_slider_percent: false,
   full_width_sliders: false,
-  color_temp_in_kelvin: false,
+  min_color_temp_kelvin: null,
+  max_color_temp_kelvin: null,
   transition: 0,
 
   brightness_icon: 'weather-sunny',
