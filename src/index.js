@@ -160,6 +160,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     if (this._colorMode === undefined) this._colorMode = null;
     if (this._rgbView === undefined) this._rgbView = 'dots';
     if (this._liveValues === undefined) this._liveValues = {};
+    // Remember last RGB and white settings so mode switching restores them
+    if (!this._savedRgb) this._savedRgb = null;
+    if (!this._savedWhite) this._savedWhite = null;
   }
 
   static async getConfigElement() {
@@ -385,19 +388,32 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
   _switchColorMode(mode, stateObj) {
     if (this._colorMode === mode) return;
+    const prevMode = this._colorMode;
     this._colorMode = mode;
 
     if (!this.isEntityOn(stateObj)) return;
 
+    // Save current state before switching
+    if (prevMode === 'rgb') {
+      this._savedRgb = stateObj.attributes.hs_color ? [...stateObj.attributes.hs_color] : null;
+    } else if (prevMode === 'white') {
+      this._savedWhite = {
+        kelvin: stateObj.attributes.color_temp_kelvin || null,
+        mired: stateObj.attributes.color_temp || null,
+        white: this._getWhiteValue(stateObj, 3),
+      };
+    }
+
     if (mode === 'rgb') {
-      const hs = stateObj.attributes.hs_color || [0, 100];
+      // Restore saved RGB, or use a vivid default (not the HS derived from color_temp)
+      const hs = this._savedRgb || [0, 100];
       this._callService({ hs_color: hs }, stateObj);
       return;
     }
 
-    // White mode
+    // White mode — restore saved white, or pick a sensible default
     if (this._isFixedWhite()) {
-      const whiteValue = this._getWhiteValue(stateObj, 3) || 255;
+      const whiteValue = (this._savedWhite && this._savedWhite.white) || 255;
       const modes = this._colorModes(stateObj);
       if (modes.includes('white')) {
         this._callService({ white: whiteValue }, stateObj);
@@ -409,7 +425,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     } else {
       const range = this._getColorTempRange(stateObj);
       if (range) {
-        const kelvin = range.kelvin ?? Math.round((range.minK + range.maxK) / 2);
+        // Prefer saved kelvin, fall back to current or midpoint
+        const kelvin = (this._savedWhite && this._savedWhite.kelvin)
+          || range.kelvin
+          || Math.round((range.minK + range.maxK) / 2);
         const payload = range.usesKelvin
           ? { color_temp_kelvin: kelvin }
           : { color_temp: Math.round(MIRED_KELVIN_FACTOR / kelvin) };
