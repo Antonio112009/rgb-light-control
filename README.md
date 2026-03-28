@@ -1,42 +1,60 @@
-# Light Entity Card
+# RGB Light Controller
 
-Control any light/switch entity through lovelace
-
-## Support
-
-For help, visit the light entity support thread [here](https://community.home-assistant.io/t/light-entity-card/96146)
-
-<img src='https://raw.githubusercontent.com/Antonio112009/rgb-light-control/master/card.png' />
+A feature-rich custom card for [Home Assistant](https://www.home-assistant.io/) that gives you full control over any light or switch entity.
 
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE.md)
 ![Project Maintenance][maintenance-shield]
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![HACS][hacs-shield]][hacs]
+
+<!-- TODO: replace with an up-to-date screenshot -->
+<img src='https://raw.githubusercontent.com/Antonio112009/rgb-light-control/master/card.png' />
 
 ## Features
 
-* Works on any light and switch based entity
-* Toggle on/off
-* HS Color wheel
-* Color temperature and white value support
-* Support for configured language
-* Compact card support for grouped entities
-* use `persist_features: true` to always show entity features
-* use `effects_list` to add a custom effects list or use an `input_select` entity when you want to show effects
-* always show or hide header and each input 
+**Color control**
+- HS color wheel for precise color picking
+- 8 preset color dots (red, orange, yellow, green, cyan, blue, purple, pink)
+- Toggle between preset dots and color wheel views
+- Saturation slider
+
+**White / color temperature**
+- Color temperature slider labelled in Kelvin
+- Configurable min/max Kelvin range
+- White channel and warm white channel sliders (RGBW / RGBWW)
+- Fixed white mode option
+
+**RGB / White mode switching**
+- One-tap toggle between RGB and White modes
+- Automatically saves and restores your last color and temperature when switching
+
+**Sliders & effects**
+- Brightness, speed, and intensity sliders with optional percentage labels
+- Effects list from custom entries, an `input_select` entity, or the light's built-in effects
+
+**Layout & UI**
+- Compact card mode for grouped entities
+- Full-width sliders option
+- Customizable header, icons, and per-slider visibility
+- Child card mode (nested inside other cards)
+- Multi-language support
 
 ## Installation
 
-Add through  [HACS](https://github.com/custom-components/hacs)
+Install via [HACS](https://hacs.xyz/) (search for **RGB Light Controller**).
 
-Issues with the installation should be asked in the [Home Assistant forums](https://community.home-assistant.io/t/light-entity-card/96146)
+For help, visit the [community support thread](https://community.home-assistant.io/t/light-entity-card/96146).
 
-## Configurations
+## Quick start
 
 ```yaml
 type: custom:light-entity-card
-entity: light.downstairs
+entity: light.living_room
 ```
+
+## Configuration examples
+
+**Custom effects list**
 
 ```yaml
 type: custom:light-entity-card
@@ -46,58 +64,76 @@ effects_list:
   - effect2
 ```
 
+**Effects from an input_select**
+
 ```yaml
 type: custom:light-entity-card
 entity: light.downstairs
 effects_list: input_select.custom_effect_list
 ```
 
+**Compact grouped card**
+
 ```yaml
 type: custom:light-entity-card
 entity: light.downstairs
-group: true
+shorten_cards: true
+consolidate_entities: true
+```
+
+**Full-width sliders with percentages**
+
+```yaml
+type: custom:light-entity-card
+entity: light.strip
+full_width_sliders: true
+show_slider_percent: true
 ```
 
 ## Options
 
-| Name                 | Type                | Requirement  | `Default value` Description                                                 |
-| -------------------- | ------------------- | ------------ | --------------------------------------------------------------------------- |
-| type                 | string              | **Required** | `custom:light-entity-card`                                                  |
-| entity               | string              | **Required** | The entity name of the light entity to control                              |
-| shorten_cards        | boolean             | **Optional** | `false` show a compact version of the card                                  |
-| consolidate_entities | boolean             | **Optional** | `false` if entity is a group you can consolidate all entities into one      |
-| persist_features     | boolean             | **Optional** | `false` always show entity features                                         |
-| effects_list         | list/string/boolean | **Optional** | `false` by default; custom list of effects, an input_select entity, or set true to use the light effect list |
-| header               | string              | **Optional** | custom header name                                                          |
-| hide_header          | boolean             | **Optional** | `false` hides the entity header of the card including toggle                |
-| show_header_icon     | boolean             | **Optional** | `false` shows the entity icon of the card including toggle                  |
-| brightness           | boolean             | **Optional** | `true` show brightness slider if available                                  |
-| color_temp           | boolean             | **Optional** | `true` show color temp slider if available, always labelled in Kelvin       |
-| min_color_temp_kelvin| number              | **Optional** | lower Kelvin bound for the color temperature slider                         |
-| max_color_temp_kelvin| number              | **Optional** | upper Kelvin bound for the color temperature slider                         |
-| white_value          | boolean             | **Optional** | `true` show white value slider if available                                 |
-| color_picker         | boolean             | **Optional** | `true` show color picker wheel if available                                 |
-| speed                | boolean             | **Optional** | `false` show speed slider if available                                      |
-| intensity            | boolean             | **Optional** | `false` show intensity slider if available                                  |
-| force_features       | boolean             | **Optional** | `false` force showing all features in card                                  |
-| full_width_sliders   | boolean             | **Optional** | `false` makes slider the full width of card                                 |
-| brightness_icon      | string              | **Optional** | `weather-sunny` change the brightness slider icon                           |
-| white_icon           | string              | **Optional** | `file-word-box` change the white slider icon                                |
-| temperature_icon     | string              | **Optional** | `thermometer` change the temperature slider icon                            |
-| speed_icon           | string              | **Optional** | `speedometer` change the speed slider icon                                  |
-| intensity_icon       | string              | **Optional** | `transit-connection-horizontal` change the intensity slider icon            |
-| show_slider_percent  | boolean             | **Optional** | `false` show percent next to sliders                                        |
-| child_card           | boolean             | **Optional** | `false` remove padding/margin to make this card within another card         |
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `type` | string | **required** | `custom:light-entity-card` |
+| `entity` | string | **required** | Light or switch entity ID |
+| `header` | string | entity name | Custom header text |
+| `hide_header` | boolean | `false` | Hide the card header and toggle |
+| `show_header_icon` | boolean | `false` | Show entity icon in the header |
+| `child_card` | boolean | `false` | Remove padding for nesting inside another card |
+| `shorten_cards` | boolean | `false` | Compact card layout |
+| `consolidate_entities` | boolean | `false` | Merge a group entity into one card |
+| `persist_features` | boolean | `false` | Always show controls even when the light is off |
+| `force_features` | boolean | `false` | Force-show all available controls |
+| `brightness` | boolean | `true` | Show brightness slider |
+| `color_temp` | boolean | `true` | Show color temperature slider (Kelvin) |
+| `white_value` | boolean | `true` | Show white channel slider |
+| `warm_white_value` | boolean | `true` | Show warm white channel slider |
+| `color_picker` | boolean | `true` | Show the color picker |
+| `effects_list` | list/string/bool | `false` | Custom effects list, `input_select` entity, or `true` for built-in |
+| `speed` | boolean | `true` | Show speed slider |
+| `intensity` | boolean | `true` | Show intensity slider |
+| `fixed_white` | boolean | `false` | White mode shows only brightness (no color temp) |
+| `full_width_sliders` | boolean | `false` | Sliders span the full card width |
+| `show_slider_percent` | boolean | `false` | Show percentage labels next to sliders |
+| `min_color_temp_kelvin` | number | auto | Override minimum Kelvin for color temp slider |
+| `max_color_temp_kelvin` | number | auto | Override maximum Kelvin for color temp slider |
+| `transition` | number | `0` | Transition duration in seconds |
+| `brightness_icon` | string | `weather-sunny` | Brightness slider icon |
+| `white_icon` | string | `file-word-box` | White channel slider icon |
+| `warm_white_icon` | string | `weather-sunset` | Warm white channel slider icon |
+| `temperature_icon` | string | `thermometer` | Color temperature slider icon |
+| `speed_icon` | string | `speedometer` | Speed slider icon |
+| `intensity_icon` | string | `transit-connection-horizontal` | Intensity slider icon |
 
 ---
 
-Enjoy my card? Help me out for a couple of :beers: or a :coffee:!
+Enjoy the card? Help me out for a couple of :beers: or a :coffee:!
 
 [![coffee](https://www.buymeacoffee.com/assets/img/custom_images/black_img.png)](https://www.buymeacoffee.com/JMISm06AD)
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/Antonio112009/rgb-light-control.svg?style=for-the-badge
-[commits]: https://github.com/Antonio112009/rgb-light-control/commits/master
-[license-shield]: https://img.shields.io/github/license/Antonio112009/rgb-light-control.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-%40Antonio112009-blue.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/Antonio112009/rgb-light-control.svg?style=for-the-badge
 [releases]: https://github.com/Antonio112009/rgb-light-control/releases
+[license-shield]: https://img.shields.io/github/license/Antonio112009/rgb-light-control.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-%40Antonio112009-blue.svg?style=for-the-badge
+[hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
+[hacs]: https://github.com/hacs/integration
