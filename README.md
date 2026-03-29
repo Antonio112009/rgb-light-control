@@ -7,8 +7,7 @@ A feature-rich custom card for [Home Assistant](https://www.home-assistant.io/) 
 ![Project Maintenance][maintenance-shield]
 [![HACS][hacs-shield]][hacs]
 
-<!-- TODO: replace with an up-to-date screenshot -->
-<img src='https://raw.githubusercontent.com/Antonio112009/rgb-light-control/master/card.png' />
+<img src='images/full-lamp-set.png' />
 
 ## Features
 
@@ -23,6 +22,8 @@ A feature-rich custom card for [Home Assistant](https://www.home-assistant.io/) 
 - Configurable min/max Kelvin range
 - White channel and warm white channel sliders (RGBW / RGBWW)
 - Fixed white mode option
+
+<img src='images/rgb-mode-colour-picker.png' /> <img src='images/rgb-mode-fixed-colours.png' />
 
 **RGB / White mode switching**
 - One-tap toggle between RGB and White modes
