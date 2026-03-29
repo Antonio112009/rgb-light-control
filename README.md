@@ -7,7 +7,9 @@ A feature-rich custom card for [Home Assistant](https://www.home-assistant.io/) 
 ![Project Maintenance][maintenance-shield]
 [![HACS][hacs-shield]][hacs]
 
-<img src='images/full-lamp-set.png' />
+<p align="center">
+  <img src="images/full-lamp-set.png" alt="RGB Light Controller card" width="400" />
+</p>
 
 ## Features
 
@@ -23,7 +25,10 @@ A feature-rich custom card for [Home Assistant](https://www.home-assistant.io/) 
 - White channel and warm white channel sliders (RGBW / RGBWW)
 - Fixed white mode option
 
-<img src='images/rgb-mode-colour-picker.png' /> <img src='images/rgb-mode-fixed-colours.png' />
+<p align="center">
+  <img src="images/rgb-mode-colour-picker.png" alt="Color wheel mode" width="300" />
+  <img src="images/rgb-mode-fixed-colours.png" alt="Preset colors mode" width="300" />
+</p>
 
 **RGB / White mode switching**
 - One-tap toggle between RGB and White modes
@@ -125,6 +130,27 @@ show_slider_percent: true
 | `temperature_icon` | string | `thermometer` | Color temperature slider icon |
 | `speed_icon` | string | `speedometer` | Speed slider icon |
 | `intensity_icon` | string | `transit-connection-horizontal` | Intensity slider icon |
+
+## Development
+
+```bash
+npm install
+npm run start
+```
+
+This starts a local dev server with a mock Home Assistant environment where you can test the card without a real HA instance.
+
+<p align="center">
+  <img src="images/dev-preview.png" alt="Development preview" width="700" />
+</p>
+
+To build for production:
+
+```bash
+npm run build
+```
+
+The bundled output is written to `dist/rgb-light-controller.js`.
 
 ---
 
