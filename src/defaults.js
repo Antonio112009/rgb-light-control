@@ -25,6 +25,7 @@ export default {
   min_color_temp_kelvin: null,
   max_color_temp_kelvin: null,
   transition: 0,
+  service_debounce_ms: 250,
 
   brightness_icon: 'weather-sunny',
   white_icon: 'file-word-box',

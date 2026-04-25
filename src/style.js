@@ -46,6 +46,18 @@ const style = css`
     color: var(--primary-text-color);
   }
 
+  .light-entity-card__status {
+    align-self: center;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: var(--state-unavailable-color, var(--disabled-text-color, #9e9e9e));
+    color: var(--text-primary-color, white);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
   .light-entity-card-sliders > div {
     margin-top: 14px;
   }
@@ -138,6 +150,11 @@ const style = css`
     background: rgba(0, 0, 0, 0.05);
   }
 
+  .light-entity-card__mode-btn:focus-visible {
+    outline: 2px solid var(--primary-color, #03a9f4);
+    outline-offset: 2px;
+  }
+
   .light-entity-card__color-dots {
     display: flex;
     flex-wrap: wrap;
@@ -169,6 +186,11 @@ const style = css`
     border-color: white;
     transform: scale(1.2);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .light-entity-card__color-dot:focus-visible {
+    border-color: var(--primary-color, #03a9f4);
+    box-shadow: 0 0 0 3px var(--primary-color, #03a9f4), 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .light-entity-card__rgb-view-switch {

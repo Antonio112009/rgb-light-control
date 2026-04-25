@@ -14,7 +14,7 @@ const BRIGHTNESS_MAX = 255;
 const SLIDER_PERCENT_MAX = 254;
 const MIRED_KELVIN_FACTOR = 1000000;
 const DEFAULT_RGB = [255, 255, 255];
-const SERVICE_DEBOUNCE_MS = 100;
+const SERVICE_DEBOUNCE_MS = 250;
 
 const PRESET_COLORS = [
   { name: 'Red', hs: [0, 100], color: '#ff0000' },
@@ -53,7 +53,6 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     return buildElementDefinitions(
       [
         globalElementLoader('ha-card'),
-        globalElementLoader('more-info-light'),
         globalElementLoader('ha-switch'),
         globalElementLoader('ha-icon'),
         globalElementLoader('state-badge'),
@@ -101,15 +100,27 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
   updated() {
     // Disable the built-in value tooltip on all ha-slider elements.
-    // We set properties directly because lit bindings through the scoped
-    // registry don't always reach the inner element.
+    // We track processed sliders in a WeakSet so we only touch each slider
+    // once instead of querying and assigning on every reactive update.
+    if (!this._processedSliders) this._processedSliders = new WeakSet();
     this.shadowRoot?.querySelectorAll('ha-slider').forEach(slider => {
+      if (this._processedSliders.has(slider)) return;
       slider.labeled = false;
       slider.pin = false;
-      // Reach into shadow DOM for Material Web md-slider
       const inner = slider.shadowRoot?.querySelector('md-slider');
       if (inner) inner.labeled = false;
+      this._processedSliders.add(slider);
     });
+  }
+
+  disconnectedCallback() {
+    // Clear pending debounced service calls so we don't leak timers or fire
+    // services after the card has been removed from the DOM.
+    if (this._debounceTimers) {
+      Object.values(this._debounceTimers).forEach(t => clearTimeout(t));
+      this._debounceTimers = {};
+    }
+    super.disconnectedCallback();
   }
 
   async _forceLoadColorPicker() {
@@ -155,14 +166,18 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   setConfig(config) {
     if (!config.entity) throw Error('entity required.');
 
+    const prevEntity = this.config && this.config.entity;
     this.config = { ...defaultConfig, ...config };
 
-    if (this._colorMode === undefined) this._colorMode = null;
+    // Only reset transient/per-entity state when the entity actually changes
+    // (or on the very first call). Otherwise, repeated dashboard edits would
+    // wipe the detected colour mode, RGB/wheel toggle, and saved fall-backs.
+    const entityChanged = prevEntity !== this.config.entity;
+    if (entityChanged || this._colorMode === undefined) this._colorMode = null;
     if (this._rgbView === undefined) this._rgbView = 'dots';
     if (this._liveValues === undefined) this._liveValues = {};
-    // Remember last RGB and white settings so mode switching restores them
-    if (!this._savedRgb) this._savedRgb = null;
-    if (!this._savedWhite) this._savedWhite = null;
+    if (entityChanged || !this._savedRgb) this._savedRgb = null;
+    if (entityChanged || !this._savedWhite) this._savedWhite = null;
   }
 
   static async getConfigElement() {
@@ -201,6 +216,15 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     return stateObj.state === 'on';
   }
 
+  /**
+   * True when the entity is unavailable / unknown / missing — i.e. the
+   * underlying device is offline or HA hasn't received state yet.
+   */
+  _isUnavailable(stateObj) {
+    if (!stateObj) return true;
+    return stateObj.state === 'unavailable' || stateObj.state === 'unknown';
+  }
+
   /** Returns supported_color_modes array, cached per stateObj reference */
   _colorModes(stateObj) {
     return stateObj.attributes.supported_color_modes || [];
@@ -224,6 +248,19 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 
   /**
+   * Returns true when the light is currently running an effect/scene.
+   * In this state HA-style integrations (e.g. ha-ledvance-lights v1.4.2+)
+   * report `brightness`, `color_temp_kelvin` and `hs_color` as null because
+   * the device value isn't a meaningful single colour/level.
+   */
+  _inEffectMode(stateObj) {
+    const effect = stateObj.attributes.effect;
+    if (!effect) return false;
+    const lower = String(effect).toLowerCase();
+    return lower !== 'none' && lower !== 'off';
+  }
+
+  /**
    * Checks whether a feature should be displayed.
    * @return {boolean} true if the feature should be shown
    */
@@ -233,6 +270,13 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     // WLED custom attributes
     if (featureName === 'speed' && 'speed' in stateObj.attributes) return true;
     if (featureName === 'intensity' && 'intensity' in stateObj.attributes) return true;
+
+    // In effect/scene mode brightness/colour/temp values are not meaningful;
+    // keep the effect picker visible but hide the level/colour controls.
+    if (this._inEffectMode(stateObj)
+      && ['brightness', 'colorTemp', 'color', 'whiteValue', 'warmWhiteValue'].includes(featureName)) {
+      return false;
+    }
 
     const colorModes = this._colorModes(stateObj);
     const legacyFlags = stateObj.attributes.supported_features || 0;
@@ -311,6 +355,12 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _createEntityTemplate(stateObj) {
     if (!stateObj || !stateObj.attributes) return html``;
 
+    // Entity is offline/unknown — render header (with status) only; hide all
+    // interactive controls so users can't fire services at a missing device.
+    if (this._isUnavailable(stateObj)) {
+      return html`${this._createHeader(stateObj)}`;
+    }
+
     const sliderClass = this.config.full_width_sliders ? 'ha-slider-full-width' : '';
     const supportsRgb = this._supportsRgb(stateObj);
     const supportsWhite = this._supportsWhite(stateObj);
@@ -351,6 +401,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   _createHeader(stateObj) {
     if (this.config.hide_header) return html``;
     const title = this.config.header || stateObj.attributes.friendly_name || stateObj.entity_id;
+    const unavailable = this._isUnavailable(stateObj);
+    const statusLabel = unavailable
+      ? (this.hass?.localize?.(`state.default.${stateObj.state}`) || stateObj.state)
+      : '';
 
     return html`
       <div class="light-entity-card__header">
@@ -358,13 +412,17 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
           ? html`<div class="icon-container"><state-badge .stateObj=${stateObj}></state-badge></div>`
           : ''}
         <div class="light-entity-card__title">${title}</div>
-        <div class="light-entity-card-toggle">
-          <ha-switch
-            .checked=${this.isEntityOn(stateObj)}
-            @change=${e => this._setToggle(e, stateObj)}
-            aria-label="Toggle ${title}"
-          ></ha-switch>
-        </div>
+        ${unavailable
+          ? html`<div class="light-entity-card__status" title="${statusLabel}">${statusLabel}</div>`
+          : html`
+            <div class="light-entity-card-toggle">
+              <ha-switch
+                .checked=${this.isEntityOn(stateObj)}
+                @change=${e => this._setToggle(e, stateObj)}
+                aria-label="Toggle ${title}"
+              ></ha-switch>
+            </div>
+          `}
       </div>
     `;
   }
@@ -462,7 +520,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     return html`
       <div class="light-entity-card__color-dots">
         ${colors.map(c => {
-          const isSelected = Math.abs(currentHs[0] - c.hs[0]) < 15 && currentHs[1] > 50;
+          // Circular hue distance so red (0/360) wraps correctly.
+          const dh = Math.abs(currentHs[0] - c.hs[0]) % 360;
+          const hueDist = dh > 180 ? 360 - dh : dh;
+          const isSelected = hueDist < 15 && currentHs[1] > 50;
           return html`
             <button
               class="light-entity-card__color-dot ${isSelected ? 'light-entity-card__color-dot--selected' : ''}"
@@ -857,6 +918,9 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
    */
   _callService(payload, stateObj, state) {
     if (!this._firstUpdate) return;
+    // Hard-block service calls to unavailable entities — HA would log an error
+    // and the optimistic UI would desync from the real device state.
+    if (this._isUnavailable(stateObj)) return;
 
     // Clear any pending debounce for the same entity
     const entityId = stateObj.entity_id;
@@ -872,10 +936,14 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
     // Debounce slider value changes
     if (!this._debounceTimers) this._debounceTimers = {};
+    const delay = Number.isFinite(this.config.service_debounce_ms)
+      && this.config.service_debounce_ms >= 0
+      ? this.config.service_debounce_ms
+      : SERVICE_DEBOUNCE_MS;
     this._debounceTimers[entityId] = setTimeout(() => {
       this._executeService(payload, stateObj, state);
       delete this._debounceTimers[entityId];
-    }, SERVICE_DEBOUNCE_MS);
+    }, delay);
   }
 
   _executeService(payload, stateObj, state) {
