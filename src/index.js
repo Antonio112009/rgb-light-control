@@ -408,10 +408,12 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
     return html`
       <div class="light-entity-card__header">
-        ${this.config.show_header_icon
-          ? html`<div class="icon-container"><state-badge .stateObj=${stateObj}></state-badge></div>`
-          : ''}
-        <div class="light-entity-card__title">${title}</div>
+        <div class="light-entity-card__header-main">
+          ${this.config.show_header_icon
+            ? html`<div class="icon-container"><state-badge .stateObj=${stateObj}></state-badge></div>`
+            : ''}
+          <div class="light-entity-card__title">${title}</div>
+        </div>
         ${unavailable
           ? html`<div class="light-entity-card__status" title="${statusLabel}">${statusLabel}</div>`
           : html`
