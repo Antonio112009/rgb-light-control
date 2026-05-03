@@ -41,11 +41,20 @@ const style = css`
 
   .light-entity-card__header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 4px 8px;
     min-height: 40px;
     color: var(--primary-text-color);
+  }
+
+  .light-entity-card__header-main {
+    display: flex;
+    align-items: center;
+    flex: 1 1 120px;
+    min-width: 0;
+    gap: 8px;
   }
 
   .light-entity-card__title {
@@ -57,7 +66,7 @@ const style = css`
 
   .light-entity-card__status {
     flex: 0 0 auto;
-    align-self: center;
+    align-self: flex-start;
     padding: 2px 10px;
     border-radius: 10px;
     background: var(--state-unavailable-color, var(--disabled-text-color, #9e9e9e));
