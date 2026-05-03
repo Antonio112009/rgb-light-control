@@ -41,12 +41,22 @@ const style = css`
 
   .light-entity-card__header {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    line-height: 40px;
+    gap: 8px;
+    min-height: 40px;
     color: var(--primary-text-color);
   }
 
+  .light-entity-card__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
   .light-entity-card__status {
+    flex: 0 0 auto;
     align-self: center;
     padding: 2px 10px;
     border-radius: 10px;
@@ -56,6 +66,7 @@ const style = css`
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap;
   }
 
   .light-entity-card-sliders > div {
