@@ -398,9 +398,22 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
 
   // ── Header ─────────────────────────────────────────────────────────────────
 
+  _prettifyEntityId(entityId) {
+    // light.light_front_left -> "Light Front Left"
+    const localPart = entityId.split('.').slice(1).join('.') || entityId;
+    return localPart
+      .split('_')
+      .filter(Boolean)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
   _createHeader(stateObj) {
     if (this.config.hide_header) return html``;
-    const title = this.config.header || stateObj.attributes.friendly_name || stateObj.entity_id;
+    const title =
+      this.config.header ||
+      stateObj.attributes.friendly_name ||
+      this._prettifyEntityId(stateObj.entity_id);
     const unavailable = this._isUnavailable(stateObj);
     const statusLabel = unavailable
       ? (this.hass?.localize?.(`state.default.${stateObj.state}`) || stateObj.state)
