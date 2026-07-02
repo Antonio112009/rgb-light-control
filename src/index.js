@@ -89,13 +89,28 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     // ha-hs-color-picker is lazy-loaded by HA (only when a light's more-info
     // dialog is opened). Force-load it by briefly opening a hidden dialog.
     const needsColorPicker =
-      this.config.color_picker !== false && this.config.entity.startsWith('light.');
+      this.config.color_picker !== false && this._colorPickerProbeEntity() !== null;
 
     if (needsColorPicker && !customElements.get('ha-hs-color-picker')) {
       await this._forceLoadColorPicker();
       this._colorPickerReady = true;
       this.requestUpdate();
     }
+  }
+
+  /**
+   * Returns a light entity id suitable for the more-info force-load trick:
+   * the configured entity itself, or the first light member of a group.
+   * Null when nothing on this card can need the colour wheel.
+   */
+  _colorPickerProbeEntity() {
+    const configured = this.config.entity;
+    if (configured.startsWith('light.')) return configured;
+    const members = this.hass?.states?.[configured]?.attributes?.entity_id;
+    if (Array.isArray(members)) {
+      return members.find(id => String(id).startsWith('light.')) || null;
+    }
+    return null;
   }
 
   updated() {
@@ -107,9 +122,13 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       if (this._processedSliders.has(slider)) return;
       slider.labeled = false;
       slider.pin = false;
+      // Only mark the slider done once its inner md-slider exists — it renders
+      // asynchronously, and marking too early would leave the tooltip enabled.
       const inner = slider.shadowRoot?.querySelector('md-slider');
-      if (inner) inner.labeled = false;
-      this._processedSliders.add(slider);
+      if (inner) {
+        inner.labeled = false;
+        this._processedSliders.add(slider);
+      }
     });
   }
 
@@ -120,6 +139,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       Object.values(this._debounceTimers).forEach(t => clearTimeout(t));
       this._debounceTimers = {};
     }
+    this._pendingPayloads = {};
     super.disconnectedCallback();
   }
 
@@ -132,9 +152,10 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     hideStyle.textContent = 'ha-more-info-dialog { display: none !important; }';
     ha.shadowRoot.appendChild(hideStyle);
 
-    // Open the more-info dialog to trigger HA's lazy loading
+    // Open the more-info dialog to trigger HA's lazy loading. Use a light
+    // entity (group more-info dialogs don't load the colour picker).
     ha.dispatchEvent(new CustomEvent('hass-more-info', {
-      detail: { entityId: this.config.entity },
+      detail: { entityId: this._colorPickerProbeEntity() || this.config.entity },
       bubbles: true, composed: true,
     }));
 
@@ -169,15 +190,17 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const prevEntity = this.config && this.config.entity;
     this.config = { ...defaultConfig, ...config };
 
-    // Only reset transient/per-entity state when the entity actually changes
-    // (or on the very first call). Otherwise, repeated dashboard edits would
-    // wipe the detected colour mode, RGB/wheel toggle, and saved fall-backs.
+    // Only reset transient state when the entity actually changes (or on the
+    // very first call). Otherwise, repeated dashboard edits would wipe the
+    // detected colour mode, RGB/wheel toggle, and saved fall-backs.
+    // Mode and saved colours are keyed per entity_id so group members don't
+    // share (and clobber) each other's state.
     const entityChanged = prevEntity !== this.config.entity;
-    if (entityChanged || this._colorMode === undefined) this._colorMode = null;
+    if (entityChanged || this._colorMode === undefined) this._colorMode = {};
     if (this._rgbView === undefined) this._rgbView = 'dots';
     if (this._liveValues === undefined) this._liveValues = {};
-    if (entityChanged || !this._savedRgb) this._savedRgb = null;
-    if (entityChanged || !this._savedWhite) this._savedWhite = null;
+    if (entityChanged || !this._savedRgb) this._savedRgb = {};
+    if (entityChanged || !this._savedWhite) this._savedWhite = {};
   }
 
   static async getConfigElement() {
@@ -197,11 +220,12 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
         size += this._entityCardSize(id);
       });
     } else {
-      size += this._entityCardSize(entity.attributes.entity_id);
+      // Non-group entities have no attributes.entity_id — size the entity itself
+      size += this._entityCardSize(entity.entity_id);
     }
 
     if (this.config.group) size *= 0.8;
-    return Math.floor(size);
+    return Math.max(1, Math.floor(size));
   }
 
   _entityCardSize(entityId) {
@@ -366,15 +390,20 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
     const supportsWhite = this._supportsWhite(stateObj);
     const showModeToggle = supportsRgb && supportsWhite;
 
-    // Auto-detect color mode on first render
-    if (this._colorMode === null) {
-      this._colorMode = showModeToggle
-        ? this._detectColorMode(stateObj)
-        : (supportsRgb ? 'rgb' : 'white');
+    // Auto-detect color mode on first render (per entity)
+    const entityId = stateObj.entity_id;
+    if (this._colorMode[entityId] === undefined) {
+      this._colorMode = {
+        ...this._colorMode,
+        [entityId]: showModeToggle
+          ? this._detectColorMode(stateObj)
+          : (supportsRgb ? 'rgb' : 'white'),
+      };
     }
 
-    const isRgb = !showModeToggle || this._colorMode === 'rgb';
-    const isWhite = showModeToggle && this._colorMode === 'white';
+    const mode = this._colorMode[entityId];
+    const isRgb = !showModeToggle || mode === 'rgb';
+    const isWhite = showModeToggle && mode === 'white';
     const isFixed = this._isFixedWhite();
 
     return html`
@@ -445,14 +474,15 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   // ── Mode Toggle ────────────────────────────────────────────────────────────
 
   _createModeToggle(stateObj) {
+    const mode = this._colorMode[stateObj.entity_id];
     return html`
       <div class="light-entity-card__mode-toggle">
         <button
-          class="light-entity-card__mode-btn ${this._colorMode === 'rgb' ? 'light-entity-card__mode-btn--active' : ''}"
+          class="light-entity-card__mode-btn ${mode === 'rgb' ? 'light-entity-card__mode-btn--active' : ''}"
           @click=${() => this._switchColorMode('rgb', stateObj)}
         >RGB</button>
         <button
-          class="light-entity-card__mode-btn ${this._colorMode === 'white' ? 'light-entity-card__mode-btn--active' : ''}"
+          class="light-entity-card__mode-btn ${mode === 'white' ? 'light-entity-card__mode-btn--active' : ''}"
           @click=${() => this._switchColorMode('white', stateObj)}
         >White</button>
       </div>
@@ -460,33 +490,41 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 
   _switchColorMode(mode, stateObj) {
-    if (this._colorMode === mode) return;
-    const prevMode = this._colorMode;
-    this._colorMode = mode;
+    const entityId = stateObj.entity_id;
+    const prevMode = this._colorMode[entityId];
+    if (prevMode === mode) return;
+    this._colorMode = { ...this._colorMode, [entityId]: mode };
 
     if (!this.isEntityOn(stateObj)) return;
 
     // Save current state before switching
     if (prevMode === 'rgb') {
-      this._savedRgb = stateObj.attributes.hs_color ? [...stateObj.attributes.hs_color] : null;
+      this._savedRgb = {
+        ...this._savedRgb,
+        [entityId]: stateObj.attributes.hs_color ? [...stateObj.attributes.hs_color] : null,
+      };
     } else if (prevMode === 'white') {
       this._savedWhite = {
-        kelvin: stateObj.attributes.color_temp_kelvin || null,
-        mired: stateObj.attributes.color_temp || null,
-        white: this._getWhiteValue(stateObj, 3),
+        ...this._savedWhite,
+        [entityId]: {
+          kelvin: stateObj.attributes.color_temp_kelvin || null,
+          mired: stateObj.attributes.color_temp || null,
+          white: this._getWhiteValue(stateObj, 3),
+        },
       };
     }
 
     if (mode === 'rgb') {
       // Restore saved RGB, or use a vivid default (not the HS derived from color_temp)
-      const hs = this._savedRgb || [0, 100];
+      const hs = this._savedRgb[entityId] || [0, 100];
       this._callService({ hs_color: hs }, stateObj);
       return;
     }
 
     // White mode — restore saved white, or pick a sensible default
+    const savedWhite = this._savedWhite[entityId];
     if (this._isFixedWhite()) {
-      const whiteValue = (this._savedWhite && this._savedWhite.white) || 255;
+      const whiteValue = (savedWhite && savedWhite.white) || 255;
       const modes = this._colorModes(stateObj);
       if (modes.includes('white')) {
         this._callService({ white: whiteValue }, stateObj);
@@ -499,7 +537,7 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       const range = this._getColorTempRange(stateObj);
       if (range) {
         // Prefer saved kelvin, fall back to current or midpoint
-        const kelvin = (this._savedWhite && this._savedWhite.kelvin)
+        const kelvin = (savedWhite && savedWhite.kelvin)
           || range.kelvin
           || Math.round((range.minK + range.maxK) / 2);
         const payload = range.usesKelvin
@@ -924,12 +962,17 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
   }
 
   _setEffect(event, stateObj) {
-    if (!event.target.value) return;
-    this._callService({ effect: event.target.value }, stateObj);
+    const effect = event.target.value;
+    // ha-select fires `selected` while initialising the pre-selected item;
+    // skipping the no-op change prevents a spurious service call on render.
+    if (!effect || effect === stateObj.attributes.effect) return;
+    this._callService({ effect }, stateObj);
   }
 
   /**
    * Debounced service call to prevent overwhelming lights during rapid slider changes.
+   * Pending payloads are merged per entity so a brightness change followed by a
+   * colour-temp change within the debounce window sends both, not just the last.
    */
   _callService(payload, stateObj, state) {
     if (!this._firstUpdate) return;
@@ -943,21 +986,27 @@ class LightEntityCard extends ScopedRegistryHost(LitElement) {
       clearTimeout(this._debounceTimers[entityId]);
     }
 
-    // Toggle and effect commands execute immediately (no debounce)
+    // Toggle and effect commands execute immediately (no debounce) and
+    // supersede any pending slider payload for the entity.
     if (state || payload.effect) {
+      if (this._pendingPayloads) delete this._pendingPayloads[entityId];
       this._executeService(payload, stateObj, state);
       return;
     }
 
-    // Debounce slider value changes
+    // Debounce slider value changes, merging with any pending payload
     if (!this._debounceTimers) this._debounceTimers = {};
+    if (!this._pendingPayloads) this._pendingPayloads = {};
+    this._pendingPayloads[entityId] = { ...this._pendingPayloads[entityId], ...payload };
     const delay = Number.isFinite(this.config.service_debounce_ms)
       && this.config.service_debounce_ms >= 0
       ? this.config.service_debounce_ms
       : SERVICE_DEBOUNCE_MS;
     this._debounceTimers[entityId] = setTimeout(() => {
-      this._executeService(payload, stateObj, state);
+      const merged = this._pendingPayloads[entityId];
+      delete this._pendingPayloads[entityId];
       delete this._debounceTimers[entityId];
+      this._executeService(merged, stateObj, state);
     }, delay);
   }
 
