@@ -1,10 +1,11 @@
 name: CI
 
+# Branch flow: feature branches -> development -> main.
 on:
   push:
-    branches: [main, master]
+    branches: [main, development]
   pull_request:
-    branches: [main, master]
+    branches: [main, development]
 
 permissions:
   contents: read
