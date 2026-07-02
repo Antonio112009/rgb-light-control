@@ -1,6 +1,6 @@
 {
   "name": "rgb-light-controller",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "RGB light control card for Home Assistant Lovelace UI",
   "keywords": [
     "home-assistant",
