@@ -1,10 +1,11 @@
 name: CI
 
+# Branch flow: feature branches -> development -> main.
 on:
   push:
-    branches: [main, master]
+    branches: [main, development]
   pull_request:
-    branches: [main, master]
+    branches: [main, development]
 
 permissions:
   contents: read
@@ -32,10 +33,13 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Build
         run: npm run build
+
+      - name: Verify committed dist is up to date
+        run: git diff --exit-code dist/
 
       - name: Upload built bundle
         if: matrix.node-version == 22
